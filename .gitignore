@@ -1,0 +1,61 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*~
+migrate_working_dir/
+
+# Log and database files
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Python / Backend environment and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+.env.local
+.env.*.local
+venv/
+.venv/
+ENV/
+env/
+
+# Flutter / Dart / Web frontend
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+/financial_clarity/build/
+/financial_clarity/.dart_tool/
+/financial_clarity/.pub/
+/financial_clarity/.pub-cache/
+/financial_clarity/.flutter-plugins
+/financial_clarity/.flutter-plugins-dependencies
+/financial_clarity/ios/Flutter/.last_build_id
+/financial_clarity/android/app/debug
+/financial_clarity/android/app/profile
+/financial_clarity/android/app/release
+
+# Extra raw data sheets
+financial clarity (Responses) - Google Sheets.pdf
