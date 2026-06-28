@@ -1,0 +1,58 @@
+name: financial_clarity
+description: "Financial Clarity — Personal finance management, investment advisory, and portfolio analytics."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Networking
+  dio: ^5.7.0
+
+  # Local Storage
+  flutter_secure_storage: ^9.2.3
+  shared_preferences: ^2.3.4
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # Authentication
+  local_auth: ^2.3.0
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+
+  # Typography
+  google_fonts: ^6.2.1
+
+  # UI Utilities
+  shimmer: ^3.0.0
+  intl: ^0.19.0
+  cached_network_image: ^3.4.1
+
+  # Serialization
+  json_annotation: ^4.9.0
+  freezed_annotation: ^2.4.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  json_serializable: ^6.8.0
+  freezed: ^2.5.7
+  riverpod_generator: ^2.6.2
+
+flutter:
+  uses-material-design: true
