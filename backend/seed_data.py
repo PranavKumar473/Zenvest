@@ -126,36 +126,7 @@ async def seed():
         await db.flush()
         print(f"✅ Created {len(budgets)} budgets for {month_year}")
 
-        # --- 3. Create transactions (last 60 days) ---
-        transactions = []
-        for days_ago in range(60):
-            txn_date = datetime.now(timezone.utc) - timedelta(days=days_ago)
-            # 1-4 transactions per day
-            num_txns = random.randint(1, 4)
 
-            for _ in range(num_txns):
-                category = random.choice(list(VENDORS.keys()))
-                vendor_name, min_amt, max_amt = random.choice(VENDORS[category])
-                amount = round(random.uniform(min_amt, max_amt), 2)
-
-                txn = Transaction(
-                    user_id=user.id,
-                    vendor=vendor_name,
-                    amount=amount,
-                    category=category,
-                    description=f"Payment to {vendor_name}",
-                    source=random.choice(["manual", "sms"]),
-                    is_debit=True,
-                    timestamp=txn_date.replace(
-                        hour=random.randint(8, 22),
-                        minute=random.randint(0, 59),
-                    ),
-                )
-                db.add(txn)
-                transactions.append(txn)
-
-        await db.flush()
-        print(f"✅ Created {len(transactions)} transactions (60 days)")
 
         # --- 4. Create portfolio holdings ---
         holdings_data = [
