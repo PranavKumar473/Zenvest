@@ -15,6 +15,7 @@ class AuthState {
   final AuthStatus status;
   final String? userId;
   final String? userName;
+  final String userType; // "user" or "advisor"
   final bool onboardingCompleted;
   final Failure? failure;
 
@@ -22,6 +23,7 @@ class AuthState {
     this.status = AuthStatus.initial,
     this.userId,
     this.userName,
+    this.userType = 'user',
     this.onboardingCompleted = false,
     this.failure,
   });
@@ -30,6 +32,7 @@ class AuthState {
     AuthStatus? status,
     String? userId,
     String? userName,
+    String? userType,
     bool? onboardingCompleted,
     Failure? failure,
   }) {
@@ -37,6 +40,7 @@ class AuthState {
       status: status ?? this.status,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
+      userType: userType ?? this.userType,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       failure: failure,
     );
@@ -61,6 +65,7 @@ class AuthController extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           userId: user['id'],
           userName: user['name'],
+          userType: user['user_type'] ?? 'user',
           onboardingCompleted: user['onboarding_completed'] ?? false,
         );
       } catch (_) {
@@ -162,6 +167,7 @@ class AuthController extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         userId: user['id'],
         userName: user['name'],
+        userType: user['user_type'] ?? 'user',
         onboardingCompleted: user['onboarding_completed'] ?? false,
       );
       return true;

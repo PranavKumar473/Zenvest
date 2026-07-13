@@ -11,6 +11,7 @@ import '../../../core/network/api_endpoints.dart';
 import '../../../shared/widgets/loading_shimmer.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/widgets/animated_card.dart';
+import '../domain/advisor.dart';
 
 class AdvisorProfileScreen extends ConsumerStatefulWidget {
   final String advisorId;
@@ -22,10 +23,12 @@ class AdvisorProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
-  dynamic _advisor;
+  Advisor? _advisor;
   bool _isLoading = true;
   bool _isActionLoading = false;
   String? _error;
+  String? _requestStatus; // null | 'pending' | 'accepted' | 'rejected'
+  String? _requestId;
 
   @override
   void initState() {
@@ -41,10 +44,30 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
 
     try {
       final dio = ref.read(dioProvider);
-      final response = await dio.get(ApiEndpoints.advisorById(widget.advisorId));
+      final results = await Future.wait([
+        dio.get(ApiEndpoints.advisorById(widget.advisorId)),
+        dio.get('/advisor-requests/outgoing'),
+      ]);
+
+      final advisorData = Advisor.fromJson(results[0].data as Map<String, dynamic>);
+      final List<dynamic> requests = results[1].data;
+
+      // Find request for this advisor
+      final req = requests.firstWhere(
+        (r) => r['advisor_id'] == widget.advisorId,
+        orElse: () => null,
+      );
+
       if (mounted) {
         setState(() {
-          _advisor = response.data;
+          _advisor = advisorData;
+          if (req != null) {
+            _requestStatus = req['status'];
+            _requestId = req['id'];
+          } else {
+            _requestStatus = null;
+            _requestId = null;
+          }
           _isLoading = false;
         });
       }
@@ -71,7 +94,7 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
         context.push(
           '/advisors/${widget.advisorId}/call',
           extra: {
-            'name': _advisor['name'],
+            'name': _advisor!.name,
             'session_id': data['session_id'],
             'masked_number': data['masked_number'],
           },
@@ -113,7 +136,8 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
       );
     }
 
-    final List<dynamic> specs = _advisor['specializations'] ?? [];
+    final advisor = _advisor!;
+    final specs = advisor.specializations;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -155,7 +179,7 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
                 backgroundColor: AppColors.canvas.withOpacity(0.8),
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
-                    _advisor['name'] ?? 'Advisor Profile',
+                    advisor.name,
                     style: AppTypography.titleLarge.copyWith(color: AppColors.ink),
                   ),
                   centerTitle: false,
@@ -169,6 +193,8 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeaderCard(),
+                      const SizedBox(height: 24),
+                      _buildVerifiedProfileSection(),
                       const SizedBox(height: 24),
                       _buildAboutSection(),
                       const SizedBox(height: 24),
@@ -191,6 +217,7 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
   }
 
   Widget _buildHeaderCard() {
+    final advisor = _advisor!;
     return AnimatedCard(
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -215,10 +242,15 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
                 CircleAvatar(
                   radius: 36,
                   backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: Text(
-                    (_advisor['name'] ?? 'A')[0],
-                    style: AppTypography.titleLarge.copyWith(color: AppColors.primary),
-                  ),
+                  backgroundImage: advisor.profileImageUrl != null
+                      ? NetworkImage(advisor.profileImageUrl!)
+                      : null,
+                  child: advisor.profileImageUrl == null
+                      ? Text(
+                          advisor.name.isNotEmpty ? advisor.name[0] : 'A',
+                          style: AppTypography.titleLarge.copyWith(color: AppColors.primary),
+                        )
+                      : null,
                 ),
                 const SizedBox(width: 20),
                 Expanded(
@@ -229,19 +261,19 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              _advisor['name'] ?? 'Advisor',
+                              advisor.name,
                               style: AppTypography.titleLarge,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (_advisor['arn_verified'] == true)
+                          if (advisor.arnVerified)
                             const Icon(Icons.verified_rounded, color: AppColors.success, size: 22),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _advisor['arn_number'] ?? 'ARN-XXXXXX',
+                        advisor.arnNumber ?? 'ARN-XXXXXX',
                         style: AppTypography.bodyMedium.copyWith(
                           fontFamily: 'JetBrains Mono',
                           color: AppColors.inkMuted,
@@ -250,11 +282,11 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          _buildHeaderStat(Icons.star_rounded, _advisor['rating']?.toString() ?? '5.0', 'Rating'),
+                          _buildHeaderStat(Icons.star_rounded, advisor.rating.toStringAsFixed(1), 'Rating'),
                           const SizedBox(width: 24),
-                          _buildHeaderStat(Icons.work_outline_rounded, '${_advisor['experience_years']} yrs', 'Exp'),
+                          _buildHeaderStat(Icons.work_outline_rounded, '${advisor.experienceYears ?? '—'} yrs', 'Exp'),
                           const SizedBox(width: 24),
-                          _buildHeaderStat(Icons.payments_outlined, _advisor['charges']?.split(' ')[0] ?? 'Fees', 'Rate'),
+                          _buildHeaderStat(Icons.payments_outlined, advisor.charges?.split(' ')[0] ?? 'Fees', 'Rate'),
                         ],
                       ),
                     ],
@@ -286,20 +318,21 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
   }
 
   Widget _buildAboutSection() {
+    final advisor = _advisor!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('About Advisor', style: AppTypography.titleMedium),
         const SizedBox(height: 8),
         Text(
-          _advisor['bio'] ?? '',
+          advisor.bio ?? '',
           style: AppTypography.bodyMedium.copyWith(color: AppColors.inkMuted, height: 1.6),
         ),
       ],
     );
   }
 
-  Widget _buildSpecializationsSection(List<dynamic> specs) {
+  Widget _buildSpecializationsSection(List<String> specs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -317,7 +350,7 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
                 border: Border.all(color: AppColors.divider),
               ),
               child: Text(
-                s.toString(),
+                s,
                 style: AppTypography.labelMedium.copyWith(color: AppColors.ink),
               ),
             );
@@ -327,7 +360,42 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
     );
   }
 
+  /// Full verified profile — Name, Photo, Email, Phone, PAN, Address — per
+  /// SEBI disclosure requirements. Phone/PAN arrive pre-masked from the API.
+  Widget _buildVerifiedProfileSection() {
+    final advisor = _advisor!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Verified Profile', style: AppTypography.titleMedium),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: AppColors.surface,
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            children: [
+              _buildCredentialRow('Email', advisor.email),
+              const Divider(color: AppColors.divider, height: 24),
+              _buildCredentialRow('Phone', advisor.phoneNumberMasked ?? 'Not on file'),
+              const Divider(color: AppColors.divider, height: 24),
+              _buildCredentialRow('PAN', advisor.panMasked ?? 'Not on file'),
+              const Divider(color: AppColors.divider, height: 24),
+              _buildCredentialRow('Address', advisor.address?.displayLine.isNotEmpty == true
+                  ? advisor.address!.displayLine
+                  : 'Not on file'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCredentialsSection() {
+    final advisor = _advisor!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -342,16 +410,52 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
           ),
           child: Column(
             children: [
-              _buildCredentialRow('Organization', 'AMFI Registered'),
+              _buildCredentialRow('ARN (Mutual Fund Execution)', advisor.arnNumber ?? 'ARN-XXXXXX'),
               const Divider(color: AppColors.divider, height: 24),
-              _buildCredentialRow('ARN Status', _advisor['arn_verified'] == true ? 'Active / Verified' : 'Pending Verification'),
+              _buildCredentialRow('ARN Status', advisor.arnVerified ? 'Active / Verified' : 'Pending Verification'),
               const Divider(color: AppColors.divider, height: 24),
-              _buildCredentialRow('Registration Number', _advisor['arn_number'] ?? 'ARN-XXXXXX'),
+              _buildCredentialRow('INA (Fee-Only Advice)', advisor.hasIna ? advisor.inaNumber! : 'Not registered'),
+              const Divider(color: AppColors.divider, height: 24),
+              _buildCredentialRow('GST', advisor.gstNumber ?? 'Not registered'),
+              const Divider(color: AppColors.divider, height: 24),
+              _buildCredentialRow('GST Status', _gstStatusLabel(advisor.gstVerificationStatus)),
             ],
           ),
         ),
+        if (advisor.hasConsultationFee) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                side: const BorderSide(color: AppColors.primary),
+              ),
+              icon: const Icon(Icons.subscriptions_outlined, color: AppColors.primary),
+              label: Text(
+                'Subscribe · ${advisor.charges}',
+                style: AppTypography.labelLarge.copyWith(color: AppColors.primary),
+              ),
+              onPressed: () => context.push('/advisors/${widget.advisorId}/subscribe'),
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  String _gstStatusLabel(GstVerificationStatus status) {
+    switch (status) {
+      case GstVerificationStatus.verified:
+        return 'Verified';
+      case GstVerificationStatus.failed:
+        return 'Verification Failed';
+      case GstVerificationStatus.pending:
+        return 'Pending';
+      case GstVerificationStatus.unverified:
+        return 'Not Verified';
+    }
   }
 
   Widget _buildCredentialRow(String label, String val) {
@@ -359,9 +463,53 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: AppTypography.bodyMedium.copyWith(color: AppColors.inkMuted)),
-        Text(val, style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+        Flexible(
+          child: Text(
+            val,
+            style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600),
+            textAlign: TextAlign.right,
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _sendAdvisorRequest() async {
+    setState(() {
+      _isActionLoading = true;
+    });
+
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.post('/advisor-requests', data: {
+        'advisor_id': widget.advisorId,
+        'message': 'Hello, I would like to consult with you regarding my investment planning.',
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request sent successfully! Waiting for advisor response.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        _fetchAdvisorDetails();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send request. Try again.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isActionLoading = false;
+        });
+      }
+    }
   }
 
   Widget _buildActionButtonsBar() {
@@ -379,51 +527,106 @@ class _AdvisorProfileScreenState extends ConsumerState<AdvisorProfileScreen> {
           borderRadius: BorderRadius.circular(0),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      side: const BorderSide(color: AppColors.divider),
-                    ),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.ink),
-                    label: Text('Chat', style: AppTypography.labelLarge.copyWith(color: AppColors.ink)),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Chat feature coming soon! Try starting a secure Demo Call.'),
-                          backgroundColor: AppColors.primary,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: _isActionLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                      : ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.canvas,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: 0,
-                          ),
-                          icon: const Icon(Icons.phone_in_talk_rounded),
-                          label: Text('Demo Call', style: AppTypography.labelLarge.copyWith(color: AppColors.canvas)),
-                          onPressed: _initiateDemoCall,
-                        ),
-                ),
-              ],
-            ),
+            child: _isActionLoading
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                : _buildActionContent(),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionContent() {
+    if (_requestStatus == null) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+          ),
+          icon: const Icon(Icons.person_add_rounded),
+          label: Text('Request Advisor', style: AppTypography.labelLarge.copyWith(color: Colors.white)),
+          onPressed: _sendAdvisorRequest,
+        ),
+      );
+    }
+
+    if (_requestStatus == 'pending') {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber.shade600,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+          ),
+          icon: const Icon(Icons.hourglass_empty_rounded),
+          label: Text('Request Pending 🔄', style: AppTypography.labelLarge.copyWith(color: Colors.white)),
+          onPressed: null, // Disabled
+        ),
+      );
+    }
+
+    if (_requestStatus == 'rejected') {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+          ),
+          icon: const Icon(Icons.block_rounded),
+          label: Text('Request Declined ❌', style: AppTypography.labelLarge.copyWith(color: Colors.white)),
+          onPressed: null, // Disabled
+        ),
+      );
+    }
+
+    // Default: 'accepted'
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              side: const BorderSide(color: AppColors.divider),
+            ),
+            icon: const Icon(Icons.chat_bubble_outline_rounded, color: AppColors.ink),
+            label: Text('Chat', style: AppTypography.labelLarge.copyWith(color: AppColors.ink)),
+            onPressed: () {
+              context.push('/chat/$_requestId', extra: {
+                'name': _advisor!.name,
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.canvas,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.phone_in_talk_rounded),
+            label: Text('Secure Call', style: AppTypography.labelLarge.copyWith(color: AppColors.canvas)),
+            onPressed: _initiateDemoCall,
+          ),
+        ),
+      ],
     );
   }
 }

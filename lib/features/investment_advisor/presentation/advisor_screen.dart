@@ -26,6 +26,7 @@ class AdvisorState {
   final String? error;
   final Map<String, bool> confirmedSchemes;        // ADD — schemeId → confirmed
   final Map<String, double> actualAmounts;         // ADD — schemeId → amount typed
+  final List<dynamic> acceptedAdvisors;            // ADD: List of accepted human advisors
 
   const AdvisorState({
     this.hasProfile = false,
@@ -40,6 +41,7 @@ class AdvisorState {
     this.error,
     this.confirmedSchemes = const {},
     this.actualAmounts = const {},
+    this.acceptedAdvisors = const [],
   });
 
   AdvisorState copyWith({
@@ -55,6 +57,7 @@ class AdvisorState {
     String? error,
     Map<String, bool>? confirmedSchemes,
     Map<String, double>? actualAmounts,
+    List<dynamic>? acceptedAdvisors,
   }) {
     return AdvisorState(
       hasProfile: hasProfile ?? this.hasProfile,
@@ -69,6 +72,7 @@ class AdvisorState {
       error: error,
       confirmedSchemes: confirmedSchemes ?? this.confirmedSchemes,
       actualAmounts: actualAmounts ?? this.actualAmounts,
+      acceptedAdvisors: acceptedAdvisors ?? this.acceptedAdvisors,
     );
   }
 }
@@ -85,11 +89,25 @@ class AdvisorController extends StateNotifier<AdvisorState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final response = await _dio.get(ApiEndpoints.investmentAdvisor);
-      final data = response.data;
+      final results = await Future.wait([
+        _dio.get(ApiEndpoints.investmentAdvisor),
+        _dio.get('/advisor-requests/outgoing'),
+      ]);
+
+      final data = results[0].data;
+      final List<dynamic> requests = results[1].data;
+
+      // Filter accepted advisors
+      final accepted = requests
+          .where((r) => r['status'] == 'accepted')
+          .map((r) => {
+                'id': r['advisor_id'],
+                'name': r['advisor_name'],
+              })
+          .toList();
 
       if (data['has_profile'] != true) {
-        state = const AdvisorState(hasProfile: false);
+        state = AdvisorState(hasProfile: false, acceptedAdvisors: accepted);
         return;
       }
 
@@ -107,6 +125,8 @@ class AdvisorController extends StateNotifier<AdvisorState> {
         explanations: data['asset_explanations'] ?? {},
         schemeSuggestions: data['scheme_suggestions'] ?? {},
         monthlyInvestable: (data['monthly_investable'] as num?)?.toDouble() ?? 0.0,
+        acceptedAdvisors: accepted,
+        isLoading: false,
       );
     } catch (e) {
       state = state.copyWith(error: 'Failed to load advisor data', isLoading: false);
@@ -119,6 +139,7 @@ class AdvisorController extends StateNotifier<AdvisorState> {
     required double suggestedAmount,
     required double actualAmount,
     required bool confirmed,
+    String? advisorId,
   }) async {
     try {
       await _dio.post(ApiEndpoints.confirmInvestment, data: {
@@ -127,6 +148,7 @@ class AdvisorController extends StateNotifier<AdvisorState> {
         'suggested_amount': suggestedAmount,
         'actual_amount': actualAmount,
         'confirmed': confirmed,
+        'advisor_id': advisorId,
       });
       // Mark locally as confirmed
       final key = '${assetType}_$schemeName';
@@ -397,13 +419,15 @@ class AdvisorScreen extends ConsumerWidget {
                     return _SchemeCard(
                       scheme: scheme,
                       assetType: entry.key,
-                      onConfirm: (actualAmount, confirmed) =>
+                      acceptedAdvisors: state.acceptedAdvisors,
+                      onConfirm: (actualAmount, confirmed, advisorId) =>
                           controller.confirmInvestment(
                             assetType: entry.key,
                             schemeName: scheme['name'] ?? '',
                             suggestedAmount: (scheme['suggested_amount'] as num).toDouble(),
                             actualAmount: actualAmount,
                             confirmed: confirmed,
+                            advisorId: advisorId,
                           ),
                     );
                   }),
@@ -496,11 +520,13 @@ class AdvisorScreen extends ConsumerWidget {
 class _SchemeCard extends StatefulWidget {
   final Map<String, dynamic> scheme;
   final String assetType;
-  final Function(double amount, bool confirmed) onConfirm;
+  final List<dynamic> acceptedAdvisors;
+  final Function(double amount, bool confirmed, String? advisorId) onConfirm;
 
   const _SchemeCard({
     required this.scheme,
     required this.assetType,
+    required this.acceptedAdvisors,
     required this.onConfirm,
   });
 
@@ -513,6 +539,7 @@ class _SchemeCardState extends State<_SchemeCard> {
   bool _showManualInput = false;
   final _amountController = TextEditingController();
   bool _submitted = false;
+  String? _selectedAdvisorId;
 
   @override
   void dispose() {
@@ -581,6 +608,30 @@ class _SchemeCardState extends State<_SchemeCard> {
 
           // Suggested amount + confirmation row
           if (!_submitted) ...[
+            if (widget.acceptedAdvisors.isNotEmpty) ...[
+              DropdownButtonFormField<String>(
+                value: _selectedAdvisorId,
+                hint: const Text('Link advisor ARN (optional)', style: TextStyle(fontSize: 12)),
+                isExpanded: true,
+                items: widget.acceptedAdvisors.map<DropdownMenuItem<String>>((adv) {
+                  return DropdownMenuItem<String>(
+                    value: adv['id'],
+                    child: Text('${adv['name']}', style: const TextStyle(fontSize: 12)),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedAdvisorId = val;
+                  });
+                },
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(
@@ -599,7 +650,7 @@ class _SchemeCardState extends State<_SchemeCard> {
                 ElevatedButton.icon(
                   onPressed: () {
                     setState(() { _isDone = true; _submitted = true; });
-                    widget.onConfirm(suggestedAmount, true);
+                    widget.onConfirm(suggestedAmount, true, _selectedAdvisorId);
                   },
                   icon: const Icon(Icons.check, size: 16),
                   label: const Text('Done'),
@@ -655,7 +706,7 @@ class _SchemeCardState extends State<_SchemeCard> {
                       final amt = double.tryParse(_amountController.text) ?? 0;
                       if (amt > 0) {
                         setState(() { _isDone = true; _submitted = true; });
-                        widget.onConfirm(amt, true);
+                        widget.onConfirm(amt, true, _selectedAdvisorId);
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -673,7 +724,7 @@ class _SchemeCardState extends State<_SchemeCard> {
               TextButton(
                 onPressed: () {
                   setState(() { _submitted = true; });
-                  widget.onConfirm(0, false);
+                  widget.onConfirm(0, false, null);
                 },
                 child: Text('Skip this scheme for now',
                     style: AppTypography.labelSmall.copyWith(

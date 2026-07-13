@@ -235,6 +235,14 @@ class _AdvisorDiscoveryScreenState extends ConsumerState<AdvisorDiscoveryScreen>
                                   message: 'AMFI Registered & Verified',
                                   child: Icon(Icons.verified_rounded, color: AppColors.success, size: 18),
                                 ),
+                              if (advisor['gst_verified'] == true)
+                                const Tooltip(
+                                  message: 'GST Registered & Verified',
+                                  child: Padding(
+                                    padding: EdgeInsets.only(left: 4.0),
+                                    child: Icon(Icons.gavel_rounded, color: Colors.blue, size: 18),
+                                  ),
+                                ),
                             ],
                           ),
                           const SizedBox(width: 4),

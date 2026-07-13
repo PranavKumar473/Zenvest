@@ -63,7 +63,28 @@ class ErrorHandler {
   /// Extract error message from API response body.
   static String? _extractMessage(dynamic data) {
     if (data is Map<String, dynamic>) {
-      return data['message'] as String? ?? data['detail'] as String?;
+      final message = data['message'];
+      if (message is String) return message;
+      final detail = data['detail'];
+      if (detail is String) return detail;
+      if (detail is List) {
+        try {
+          return detail.map((e) {
+            if (e is Map) {
+              final loc = e['loc'];
+              final msg = e['msg'];
+              if (loc is List && loc.isNotEmpty) {
+                return '${loc.last}: $msg';
+              }
+              return msg?.toString() ?? '';
+            }
+            return e.toString();
+          }).where((msg) => msg.isNotEmpty).join(', ');
+        } catch (_) {
+          return detail.toString();
+        }
+      }
+      return message?.toString() ?? detail?.toString();
     }
     if (data is String) return data;
     return null;

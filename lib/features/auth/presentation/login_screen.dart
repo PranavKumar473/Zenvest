@@ -46,6 +46,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       CurvedAnimation(parent: _animController, curve: Curves.easeOut),
     );
     _animController.forward();
+    
+    // Check auto-login status on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authControllerProvider.notifier).checkAuthStatus();
+    });
   }
 
   @override
@@ -131,18 +136,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         }
       } else {
         final state = ref.read(authControllerProvider);
-        if (state.onboardingCompleted) {
-          context.go('/dashboard');
-        } else {
-          context.go('/onboarding');
-        }
+        context.go(_homeRouteFor(state));
       }
     }
+  }
+
+  String _homeRouteFor(AuthState state) {
+    if (state.userType == 'advisor') {
+      return state.onboardingCompleted ? '/advisor-requests' : '/advisor-onboarding';
+    }
+    return state.onboardingCompleted ? '/dashboard' : '/onboarding';
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
+
+    ref.listen<AuthState>(authControllerProvider, (previous, next) {
+      if (next.status == AuthStatus.authenticated && previous?.status != AuthStatus.authenticated) {
+        context.go(_homeRouteFor(next));
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -495,7 +509,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 16),
         Text(
-          'Your ARN card has been uploaded for verification. You can access the advisor dashboard once our team reviews your registration (usually within 24 hours).',
+          'Your ARN card has been uploaded for review. Sign in now to complete your verification profile (PAN, address, GST, and SEBI registration) — the advisor dashboard unlocks once that\'s done.',
           style: AppTypography.bodyLarge.copyWith(color: AppColors.inkLight),
           textAlign: TextAlign.center,
         ),

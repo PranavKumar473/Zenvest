@@ -37,8 +37,33 @@ class ApiEndpoints {
 
   // Human Advisors
   static const String advisors = '/advisors';
+  static const String allAdvisors = '/advisors/all';
   static String advisorById(String id) => '/advisors/$id';
   static String advisorDemoCall(String id) => '/advisors/$id/demo-call';
+  static const String verifyMyGst = '/advisors/me/verify-gst';
+  static const String completeAdvisorOnboarding = '/advisors/me/complete-onboarding';
+  static const String uploadProfilePicture = '/users/me/profile-picture';
+
+  // Advisor Requests (Connect Request flow)
+  static const String advisorRequests = '/advisor-requests';
+  static const String incomingRequests = '/advisor-requests/incoming';
+  static const String outgoingRequests = '/advisor-requests/outgoing';
+  static String respondToRequest(String id) => '/advisor-requests/$id/respond';
+  static String requestChat(String id) => '/advisor-requests/$id/chat';
+  static String requestCall(String id) => '/advisor-requests/$id/call';
+
+  // ARN/INA Linkage
+  static const String arnLinkage = '/arn-linkage';
+  static const String myLinkedAdvisors = '/arn-linkage/my-advisor';
+  static const String myLinkedInvestors = '/arn-linkage/my-investors';
+  static String linkedInvestorPortfolio(String investorId) =>
+      '/arn-linkage/my-investors/$investorId/portfolio';
+
+  // Subscriptions (Razorpay recurring consultation fee)
+  static const String subscriptionCheckout = '/subscriptions/checkout';
+  static const String verifySubscriptionPayment = '/subscriptions/verify-payment';
+  static const String mySubscriptions = '/subscriptions/mine';
+  static const String myClientSubscriptions = '/subscriptions/my-clients';
 
   // Account Aggregator
   static const String aaConsent = '/account-aggregator/consent';
