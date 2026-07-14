@@ -55,6 +55,24 @@ class Settings(BaseSettings):
     AA_CONSENT_EXPIRY_HOURS: int = 24
     AA_DATA_FETCH_TIMEOUT_SECONDS: int = 30
 
+    # GST Verification (Mock GST Portal API for MVP)
+    GST_PORTAL_API_URL: str = ""
+    GST_PORTAL_API_KEY: str = ""
+    # When either is blank, GstService falls back to MockGstPortalProvider
+
+    # Twilio — masked call bridging & recording
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_MASKING_NUMBER: str = ""  # Twilio number used as the shared masked caller ID
+    TWILIO_RECORDING_STATUS_CALLBACK_URL: str = ""
+    # When SID/token are blank, TelephonyService falls back to MockTelephonyProvider
+
+    # Razorpay — recurring monthly consultation-fee subscriptions
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+    # When key/secret are blank, BillingService falls back to MockBillingProvider
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

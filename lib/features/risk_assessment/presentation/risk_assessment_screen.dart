@@ -7,12 +7,14 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../shared/widgets/ambient_background.dart';
 
 class RiskAssessmentScreen extends ConsumerStatefulWidget {
   const RiskAssessmentScreen({super.key});
 
   @override
-  ConsumerState<RiskAssessmentScreen> createState() => _RiskAssessmentScreenState();
+  ConsumerState<RiskAssessmentScreen> createState() =>
+      _RiskAssessmentScreenState();
 }
 
 class _RiskAssessmentScreenState extends ConsumerState<RiskAssessmentScreen> {
@@ -24,16 +26,91 @@ class _RiskAssessmentScreenState extends ConsumerState<RiskAssessmentScreen> {
 
   // Questions (matching backend)
   static const _questions = [
-    {'q': 'If your investment dropped 20% in a week, what would you do?', 'opts': ['Sell everything immediately', 'Sell some to reduce risk', 'Hold and wait for recovery', 'Buy more at a lower price']},
-    {'q': 'How long can you keep your money invested?', 'opts': ['Less than 1 year', '1 to 3 years', '3 to 7 years', 'More than 7 years']},
-    {'q': 'What is your primary financial goal?', 'opts': ['Preserving my capital', 'Steady income with some growth', 'Growing my wealth over time', 'Maximizing returns, high risk ok']},
-    {'q': 'How do you react to market volatility news?', 'opts': ['Very anxious', 'Concerned but calm', 'Part of the cycle', 'I see opportunities']},
-    {'q': 'What % of monthly income can you invest?', 'opts': ['Less than 10%', '10% to 20%', '20% to 40%', 'More than 40%']},
-    {'q': 'Describe your investment experience:', 'opts': ['No experience', 'FDs and savings schemes', 'Mutual funds and bonds', 'Active stock trading']},
-    {'q': 'For ₹1L investment, which scenario appeals most?', 'opts': ['Guaranteed ₹1.06L', '50/50: ₹1.12L or ₹1.02L', '50/50: ₹1.25L or ₹95K', '50/50: ₹1.50L or ₹80K']},
-    {'q': 'How many months of emergency savings do you have?', 'opts': ['Less than 1 month', '1 to 3 months', '3 to 6 months', 'More than 6 months']},
-    {'q': 'A friend recommends a high-risk, high-reward investment:', 'opts': ['Politely decline', 'Research, invest small', 'Moderate amount after research', 'Invest significantly']},
-    {'q': 'Your current financial obligations:', 'opts': ['Heavy EMIs, dependents', 'Moderate EMIs, some dependents', 'Minimal obligations', 'No debt, strong savings']},
+    {
+      'q': 'If your investment dropped 20% in a week, what would you do?',
+      'opts': [
+        'Sell everything immediately',
+        'Sell some to reduce risk',
+        'Hold and wait for recovery',
+        'Buy more at a lower price'
+      ]
+    },
+    {
+      'q': 'How long can you keep your money invested?',
+      'opts': [
+        'Less than 1 year',
+        '1 to 3 years',
+        '3 to 7 years',
+        'More than 7 years'
+      ]
+    },
+    {
+      'q': 'What is your primary financial goal?',
+      'opts': [
+        'Preserving my capital',
+        'Steady income with some growth',
+        'Growing my wealth over time',
+        'Maximizing returns, high risk ok'
+      ]
+    },
+    {
+      'q': 'How do you react to market volatility news?',
+      'opts': [
+        'Very anxious',
+        'Concerned but calm',
+        'Part of the cycle',
+        'I see opportunities'
+      ]
+    },
+    {
+      'q': 'What % of monthly income can you invest?',
+      'opts': ['Less than 10%', '10% to 20%', '20% to 40%', 'More than 40%']
+    },
+    {
+      'q': 'Describe your investment experience:',
+      'opts': [
+        'No experience',
+        'FDs and savings schemes',
+        'Mutual funds and bonds',
+        'Active stock trading'
+      ]
+    },
+    {
+      'q': 'For ₹1L investment, which scenario appeals most?',
+      'opts': [
+        'Guaranteed ₹1.06L',
+        '50/50: ₹1.12L or ₹1.02L',
+        '50/50: ₹1.25L or ₹95K',
+        '50/50: ₹1.50L or ₹80K'
+      ]
+    },
+    {
+      'q': 'How many months of emergency savings do you have?',
+      'opts': [
+        'Less than 1 month',
+        '1 to 3 months',
+        '3 to 6 months',
+        'More than 6 months'
+      ]
+    },
+    {
+      'q': 'A friend recommends a high-risk, high-reward investment:',
+      'opts': [
+        'Politely decline',
+        'Research, invest small',
+        'Moderate amount after research',
+        'Invest significantly'
+      ]
+    },
+    {
+      'q': 'Your current financial obligations:',
+      'opts': [
+        'Heavy EMIs, dependents',
+        'Moderate EMIs, some dependents',
+        'Minimal obligations',
+        'No debt, strong savings'
+      ]
+    },
   ];
 
   void _selectAnswer(int optionIndex) {
@@ -82,8 +159,10 @@ class _RiskAssessmentScreenState extends ConsumerState<RiskAssessmentScreen> {
     if (_result != null) return _buildResultScreen();
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Text('Question ${_currentQuestion + 1} of 10'),
         actions: [
           Padding(
@@ -99,72 +178,77 @@ class _RiskAssessmentScreenState extends ConsumerState<RiskAssessmentScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Progress
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (_currentQuestion + 1) / 10,
-                minHeight: 4,
-              ),
-            ),
-          ),
-
-          // Questions
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 10,
-              itemBuilder: (context, index) {
-                final q = _questions[index];
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 16),
-                      Text(
-                        q['q'] as String,
-                        style: AppTypography.titleLarge,
-                      ),
-                      const SizedBox(height: 32),
-                      ...(q['opts'] as List<String>).asMap().entries.map(
-                        (entry) => _buildOptionCard(
-                          text: entry.value,
-                          selected: _answers[index] == entry.key,
-                          onTap: () => _selectAnswer(entry.key),
-                        ),
-                      ),
-                    ],
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Progress
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (_currentQuestion + 1) / 10,
+                    minHeight: 4,
                   ),
-                );
-              },
-            ),
-          ),
-
-          // Submit button (visible on last question)
-          if (_currentQuestion == 9 && _answers[9] >= 0)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitAssessment,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 24, height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('See My Risk Profile'),
                 ),
               ),
-            ),
-        ],
+
+              // Questions
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: 10,
+                  itemBuilder: (context, index) {
+                    final q = _questions[index];
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+                          Text(
+                            q['q'] as String,
+                            style: AppTypography.titleLarge,
+                          ),
+                          const SizedBox(height: 32),
+                          ...(q['opts'] as List<String>).asMap().entries.map(
+                                (entry) => _buildOptionCard(
+                                  text: entry.value,
+                                  selected: _answers[index] == entry.key,
+                                  onTap: () => _selectAnswer(entry.key),
+                                ),
+                              ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Submit button (visible on last question)
+              if (_currentQuestion == 9 && _answers[9] >= 0)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitAssessment,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('See My Risk Profile'),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -206,56 +290,65 @@ class _RiskAssessmentScreenState extends ConsumerState<RiskAssessmentScreen> {
     final description = _result!['description'] ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(),
-              // Animated gauge
-              Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [AppColors.primarySurface, AppColors.canvas],
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(),
+                // Animated gauge
+                Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [AppColors.primarySurface, AppColors.canvas],
+                    ),
+                    border: Border.all(color: AppColors.primary, width: 4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.18),
+                        blurRadius: 32,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
                   ),
-                  border: Border.all(color: AppColors.primary, width: 4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('$score',
+                          style: AppTypography.moneyLarge.copyWith(
+                            color: AppColors.primary,
+                          )),
+                      Text('/ 100', style: AppTypography.bodySmall),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('$score', style: AppTypography.moneyLarge.copyWith(
-                      color: AppColors.primary,
-                    )),
-                    Text('/ 100', style: AppTypography.bodySmall),
-                  ],
+                const SizedBox(height: 32),
+                Text(level, style: AppTypography.displayMedium),
+                const SizedBox(height: 12),
+                Text(
+                  description,
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.inkLight,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 32),
-              Text(level, style: AppTypography.displayMedium),
-              const SizedBox(height: 12),
-              Text(
-                description,
-                style: AppTypography.bodyLarge.copyWith(
-                  color: AppColors.inkLight,
+                const Spacer(),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/dashboard'),
+                    child: const Text('Start Exploring'),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () => context.go('/dashboard'),
-                  child: const Text('Start Exploring'),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),

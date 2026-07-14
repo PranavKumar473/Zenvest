@@ -89,10 +89,87 @@ async def seed():
             },
         )
         db.add(user)
-        await db.flush()
-        await db.refresh(user)
-
         print(f"✅ Created user: {user.email} (risk: {user.risk_profile['level']})")
+
+        # --- 1b. Create advisors ---
+        advisors_to_seed = [
+            User(
+                name="Aarav Mehta",
+                email="aarav@financialclarity.app",
+                hashed_password=hash_password("DemoPass@2026"),
+                user_type="advisor",
+                arn_number="ARN-123456",
+                arn_verified=True,
+                advisor_name="Aarav Mehta",
+                onboarding_completed=True,
+                gst_number="27AABCU9603R1ZM",
+                gst_verified=True,
+                pan_number="ABCPD1234E",
+                address={"line1": "123 Nariman Point", "city": "Mumbai", "state": "Maharashtra", "pincode": "400021"},
+                bio="Certified Financial Planner (CFP) with a passion for helping young professionals build long-term wealth. Specialized in mutual fund selection, asset allocation, and tax harvesting.",
+                specializations=["Mutual Funds", "Wealth Growth", "Tax Planning"],
+                experience_years=8,
+                consultation_fee_monthly=1500.0,
+            ),
+            User(
+                name="Priya Sharma",
+                email="priya@financialclarity.app",
+                hashed_password=hash_password("DemoPass@2026"),
+                user_type="advisor",
+                arn_number="ARN-654321",
+                arn_verified=True,
+                advisor_name="Priya Sharma",
+                onboarding_completed=True,
+                gst_number=None,
+                gst_verified=False,
+                pan_number="BCDPF5678G",
+                address={"line1": "456 Connaught Place", "city": "Delhi", "state": "Delhi", "pincode": "110001"},
+                bio="Retired senior fund manager from a top AMFI house. Helping families navigate retirement planning, debt instruments, and stable dividend portfolios.",
+                specializations=["Bonds & Fixed Income", "Retirement Planning", "Estate Planning"],
+                experience_years=22,
+                consultation_fee_monthly=2500.0,
+            ),
+            User(
+                name="Rohan Das",
+                email="rohan@financialclarity.app",
+                hashed_password=hash_password("DemoPass@2026"),
+                user_type="advisor",
+                arn_number="ARN-987654",
+                arn_verified=True,
+                advisor_name="Rohan Das",
+                onboarding_completed=True,
+                gst_number="19AABCU9603R1ZR",
+                gst_verified=True,
+                pan_number="CDEFG9012H",
+                address={"line1": "789 Salt Lake Sector V", "city": "Kolkata", "state": "West Bengal", "pincode": "700091"},
+                bio="Aggressive growth strategist focused on equity markets, international indexing, and multi-asset dynamic rebalancing. Helping clients maximize returns with measured risk.",
+                specializations=["Stocks & Equities", "Goal-Based Planning", "Gold & Alternatives"],
+                experience_years=12,
+                consultation_fee_monthly=1800.0,
+            ),
+            User(
+                name="Bucket Buffalo",
+                email="bucketbuffalo@gmail.com",
+                hashed_password=hash_password("DemoPass@2026"),
+                user_type="advisor",
+                arn_number="ARN-111111",
+                arn_verified=True,
+                advisor_name="Bucket Buffalo",
+                onboarding_completed=True,
+                gst_number="27AABCU9603R1ZP",
+                gst_verified=True,
+                pan_number="ABCDE5555F",
+                address={"line1": "55 Main Street", "city": "Bengaluru", "state": "Karnataka", "pincode": "560001"},
+                bio="Independent Financial Advisor catering to high-net-worth individuals and corporate employees. Focused on asset protection, SIP configuration, and retirement planning.",
+                specializations=["Mutual Funds", "Retirement Planning", "Wealth Growth"],
+                experience_years=10,
+                consultation_fee_monthly=2000.0,
+            )
+        ]
+        for adv in advisors_to_seed:
+            db.add(adv)
+        await db.flush()
+        print(f"✅ Created {len(advisors_to_seed)} seeded advisors (including bucketbuffalo@gmail.com)")
 
         # --- 2. Create budgets for current month ---
         month_year = datetime.now().strftime("%Y-%m")

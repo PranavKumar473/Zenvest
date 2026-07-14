@@ -17,6 +17,7 @@ from app.schemas.transaction import (
     TransactionSummaryResponse,
     TransactionSyncCreate,
     TransactionSyncResponse,
+    TransactionWithWarningsResponse,
 )
 from app.services.transaction_service import (
     create_transaction,
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
 @router.get(
-    "/",
+    "",
     response_model=TransactionListResponse,
     summary="List transactions",
 )
@@ -58,8 +59,8 @@ async def list_transactions(
 
 
 @router.post(
-    "/",
-    response_model=TransactionResponse,
+    "",
+    response_model=TransactionWithWarningsResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Record a transaction",
 )
@@ -74,33 +75,10 @@ async def record_transaction(
     """
     txn, warnings = await create_transaction(db, current_user.id, data)
 
-    response = TransactionResponse.model_validate(txn)
-    # Warnings are included in response headers for client-side notification handling
-    if warnings:
-        # In production, this would push via WebSocket or FCM
-        pass
-
-    return response
-
-
-@router.get(
-    "/{transaction_id}",
-    response_model=TransactionResponse,
-    summary="Get a single transaction",
-)
-async def get_single_transaction(
-    transaction_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Fetch a specific transaction by ID."""
-    txn = await get_transaction_by_id(db, current_user.id, transaction_id)
-    if txn is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Transaction not found",
-        )
-    return TransactionResponse.model_validate(txn)
+    return TransactionWithWarningsResponse(
+        **TransactionResponse.model_validate(txn).model_dump(),
+        warnings=[w.model_dump() for w in warnings],
+    )
 
 
 @router.post(
@@ -133,6 +111,26 @@ async def get_transaction_summary_route(
     and transaction_count for the given month (YYYY-MM). Defaults to current month.
     """
     return await get_transaction_summary(db, current_user.id, month)
+
+
+@router.get(
+    "/{transaction_id}",
+    response_model=TransactionResponse,
+    summary="Get a single transaction",
+)
+async def get_single_transaction(
+    transaction_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch a specific transaction by ID."""
+    txn = await get_transaction_by_id(db, current_user.id, transaction_id)
+    if txn is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction not found",
+        )
+    return TransactionResponse.model_validate(txn)
 
 
 @router.post(

@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
+import '../../../shared/widgets/ambient_background.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -74,7 +75,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Something went wrong. Please try again.')),
+          const SnackBar(
+              content: Text('Something went wrong. Please try again.')),
         );
       }
     } finally {
@@ -85,8 +87,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: _currentStep > 0
             ? IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
@@ -95,57 +99,62 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             : null,
         title: Text('Step ${_currentStep + 1} of 2'),
       ),
-      body: Column(
-        children: [
-          // Progress bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (_currentStep + 1) / 2,
-                minHeight: 4,
-                backgroundColor: AppColors.divider,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Progress bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (_currentStep + 1) / 2,
+                    minHeight: 4,
+                    backgroundColor: AppColors.divider,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
+              const SizedBox(height: 8),
 
-          // Pages
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildAgeStep(),
-                _buildIncomeStep(),
-              ],
-            ),
-          ),
-
-          // Next button
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: (_canProceed && !_isSubmitting) ? _nextStep : null,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.inkOnPrimary,
-                        ),
-                      )
-                    : Text(_currentStep == 1 ? 'Complete' : 'Continue'),
+              // Pages
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildAgeStep(),
+                    _buildIncomeStep(),
+                  ],
+                ),
               ),
-            ),
+
+              // Next button
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed:
+                        (_canProceed && !_isSubmitting) ? _nextStep : null,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.inkOnPrimary,
+                            ),
+                          )
+                        : Text(_currentStep == 1 ? 'Complete' : 'Continue'),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -198,8 +207,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-
-
   Widget _buildOptionTile({
     required String title,
     required String subtitle,
@@ -235,23 +242,35 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   String _ageDescription(String age) {
     switch (age) {
-      case '18-25': return 'Early career, high growth potential';
-      case '26-35': return 'Building career and assets';
-      case '36-45': return 'Peak earnings, family planning';
-      case '46-60': return 'Pre-retirement wealth consolidation';
-      case '60+': return 'Retirement and income focus';
-      default: return '';
+      case '18-25':
+        return 'Early career, high growth potential';
+      case '26-35':
+        return 'Building career and assets';
+      case '36-45':
+        return 'Peak earnings, family planning';
+      case '46-60':
+        return 'Pre-retirement wealth consolidation';
+      case '60+':
+        return 'Retirement and income focus';
+      default:
+        return '';
     }
   }
 
   String _incomeDescription(String bracket) {
     switch (bracket) {
-      case '0-5L': return 'Starting out — every rupee counts';
-      case '5-10L': return 'Building a strong savings habit';
-      case '10-25L': return 'Growing wealth and investments';
-      case '25-50L': return 'Diversifying across asset classes';
-      case '50L+': return 'Optimizing for tax and legacy';
-      default: return '';
+      case '0-5L':
+        return 'Starting out — every rupee counts';
+      case '5-10L':
+        return 'Building a strong savings habit';
+      case '10-25L':
+        return 'Growing wealth and investments';
+      case '25-50L':
+        return 'Diversifying across asset classes';
+      case '50L+':
+        return 'Optimizing for tax and legacy';
+      default:
+        return '';
     }
   }
 

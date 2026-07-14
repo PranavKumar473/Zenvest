@@ -8,31 +8,44 @@ class AppColors {
   AppColors._(); // Prevent instantiation
 
   // ── Primary Palette ──────────────────────────────────────────
-  /// Deep Forest Green — Primary accent for CTAs, active states, highlights
-  static const Color primary = Color(0xFF1A5C3A);
-  static const Color primaryLight = Color(0xFF2D7A52);
-  static const Color primaryDark = Color(0xFF0F3D25);
-  static const Color primarySurface = Color(0xFFE8F5ED);
+  /// Deep Indigo — Primary accent for CTAs, active states, highlights
+  static const Color primary = Color(0xFF3B3486);
+  static const Color primaryLight = Color(0xFF5A52B8);
+  static const Color primaryDark = Color(0xFF251F5C);
+  static const Color primarySurface = Color(0xFFEDEBF8);
+
+  // ── Ambient (decorative gradients / blurred backgrounds) ──────
+  /// Warm cream-peach — paired with the indigo primary for premium
+  /// duo-tone ambient backgrounds (auth screens).
+  static const Color ambientCream = Color(0xFFFBEEDD);
+  static const Color ambientPeach = Color(0xFFF3D9BD);
 
   // ── Canvas & Surface ─────────────────────────────────────────
   /// Light Paper Cream — Main background
   static const Color canvas = Color(0xFFF7F5F0);
+
   /// Slightly elevated surface
   static const Color surface = Color(0xFFFFFEFB);
+
   /// Card surface
   static const Color cardSurface = Color(0xFFFFFFFF);
+
   /// Subtle divider
   static const Color divider = Color(0xFFE8E5DE);
+
   /// Disabled background
   static const Color disabled = Color(0xFFE0DDD6);
 
   // ── Text / Ink ───────────────────────────────────────────────
   /// True Black — Primary text
   static const Color ink = Color(0xFF0D0D0D);
+
   /// Secondary text
   static const Color inkLight = Color(0xFF4A4A4A);
+
   /// Tertiary / hint text
   static const Color inkMuted = Color(0xFF8A8A8A);
+
   /// Inverse text on dark backgrounds
   static const Color inkOnPrimary = Color(0xFFF7F5F0);
 
@@ -58,12 +71,12 @@ class AppColors {
   static const Color budgetDanger = Color(0xFFC0392B);
 
   // ── Chart Colors ─────────────────────────────────────────────
-  static const Color chartLine = Color(0xFF1A5C3A);
-  static const Color chartFill = Color(0x331A5C3A);
+  static const Color chartLine = Color(0xFF3B3486);
+  static const Color chartFill = Color(0x333B3486);
   static const Color chartGrid = Color(0xFFE8E5DE);
 
   // ── Asset Type Colors (for pie charts & tags) ────────────────
-  static const Color assetMutualFund = Color(0xFF1A5C3A);
+  static const Color assetMutualFund = Color(0xFF3B3486);
   static const Color assetFixedDeposit = Color(0xFF2980B9);
   static const Color assetStocks = Color(0xFFE67E22);
   static const Color assetGold = Color(0xFFC9992F);

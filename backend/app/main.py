@@ -11,7 +11,11 @@ from app.config import get_settings
 from app.database import init_db, close_db
 from app.middleware.error_handler import GlobalErrorHandler
 from app.middleware.security import SecurityHeadersMiddleware, setup_cors, limiter
-from app.routers import auth, users, budgets, transactions, portfolios, account_aggregator
+from app.routers import (
+    auth, users, budgets, transactions, portfolios, account_aggregator,
+    advisors, advisor_requests, arn_linkage, subscriptions, webhooks,
+    mutual_funds,
+)
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
@@ -68,6 +72,12 @@ app.include_router(budgets.router, prefix=API_PREFIX)
 app.include_router(transactions.router, prefix=API_PREFIX)
 app.include_router(portfolios.router, prefix=API_PREFIX)
 app.include_router(account_aggregator.router, prefix=API_PREFIX)
+app.include_router(advisors.router, prefix=API_PREFIX)
+app.include_router(advisor_requests.router, prefix=API_PREFIX)
+app.include_router(arn_linkage.router, prefix=API_PREFIX)
+app.include_router(subscriptions.router, prefix=API_PREFIX)
+app.include_router(webhooks.router, prefix=API_PREFIX)
+app.include_router(mutual_funds.router, prefix=API_PREFIX)
 
 
 # --- Health Check ---

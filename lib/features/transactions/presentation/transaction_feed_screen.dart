@@ -47,15 +47,24 @@ class TransactionState {
   final String? categoryFilter;
 
   // New state variables
-  final double totalDebits;       // default 0
-  final double totalCredits;      // default 0
-  final List<Map<String, dynamic>> categoryBreakdown;  // default []
-  final bool isSyncing;           // default false — for SMS sync loading state
-  final String? syncMessage;      // e.g. "Synced 12 new transactions"
-  final bool syncSuccess;         // default true — used to colour the snackbar green or red
-  final bool liveSyncEnabled;     // default false
-  final String activeTab;         // "all" | "debit" | "credit"  default "all"
-  final String selectedMonth;     // "YYYY-MM" default current month
+  final double totalDebits; // default 0
+  final double totalCredits; // default 0
+  final List<Map<String, dynamic>> categoryBreakdown; // default []
+  final bool isSyncing; // default false — for SMS sync loading state
+  final String? syncMessage; // e.g. "Synced 12 new transactions"
+  final bool
+      syncSuccess; // default true — used to colour the snackbar green or red
+  final bool liveSyncEnabled; // default false
+  final String activeTab; // "all" | "debit" | "credit"  default "all"
+  final String selectedMonth; // "YYYY-MM" default current month
+
+  // Income / savings-floor — sourced from /budgets/suggestions so this
+  // screen and the Budget screen always agree on the same numbers.
+  final double
+      monthlyIncomeUsed; // "Total Salary" — real credits this month, else the income-bracket estimate
+  final double savingsFloorAmount; // locked-first savings, age/risk-adjusted
+  final double
+      spendableIncome; // "Budget for Expenses" = monthlyIncomeUsed - savingsFloorAmount
 
   const TransactionState({
     this.transactions = const [],
@@ -73,6 +82,9 @@ class TransactionState {
     this.liveSyncEnabled = false,
     this.activeTab = 'all',
     required this.selectedMonth,
+    this.monthlyIncomeUsed = 0.0,
+    this.savingsFloorAmount = 0.0,
+    this.spendableIncome = 0.0,
   });
 
   TransactionState copyWith({
@@ -91,6 +103,9 @@ class TransactionState {
     bool? liveSyncEnabled,
     String? activeTab,
     String? selectedMonth,
+    double? monthlyIncomeUsed,
+    double? savingsFloorAmount,
+    double? spendableIncome,
   }) {
     return TransactionState(
       transactions: transactions ?? this.transactions,
@@ -108,6 +123,9 @@ class TransactionState {
       liveSyncEnabled: liveSyncEnabled ?? this.liveSyncEnabled,
       activeTab: activeTab ?? this.activeTab,
       selectedMonth: selectedMonth ?? this.selectedMonth,
+      monthlyIncomeUsed: monthlyIncomeUsed ?? this.monthlyIncomeUsed,
+      savingsFloorAmount: savingsFloorAmount ?? this.savingsFloorAmount,
+      spendableIncome: spendableIncome ?? this.spendableIncome,
     );
   }
 }
@@ -192,6 +210,7 @@ class TransactionController extends StateNotifier<TransactionState> {
       );
 
       await loadSummary();
+      await loadIncomeSummary();
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(
@@ -212,10 +231,35 @@ class TransactionController extends StateNotifier<TransactionState> {
       state = state.copyWith(
         totalDebits: (data['total_debits'] as num?)?.toDouble() ?? 0.0,
         totalCredits: (data['total_credits'] as num?)?.toDouble() ?? 0.0,
-        categoryBreakdown: List<Map<String, dynamic>>.from(data['category_breakdown'] ?? []),
+        categoryBreakdown:
+            List<Map<String, dynamic>>.from(data['category_breakdown'] ?? []),
       );
     } catch (e) {
       // Fail silently for summary to avoid blocking transaction list
+    }
+  }
+
+  /// Total salary and salary-after-savings (budget for expenses) — same
+  /// income/savings-floor numbers the Budget screen shows, so "Money
+  /// Available" here is grounded in actual income rather than only the
+  /// credit transactions logged this month (which is often ₹0 if salary
+  /// was never manually logged/synced, making the figure look falsely
+  /// negative the moment any expense is recorded).
+  Future<void> loadIncomeSummary() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.budgetSuggestions);
+      final data = response.data;
+
+      if (!mounted) return;
+      state = state.copyWith(
+        monthlyIncomeUsed:
+            (data['monthly_income_used'] as num?)?.toDouble() ?? 0.0,
+        savingsFloorAmount:
+            (data['savings_floor_amount'] as num?)?.toDouble() ?? 0.0,
+        spendableIncome: (data['spendable_income'] as num?)?.toDouble() ?? 0.0,
+      );
+    } catch (e) {
+      // Fail silently — the summary card falls back to its zero defaults
     }
   }
 
@@ -231,7 +275,8 @@ class TransactionController extends StateNotifier<TransactionState> {
       if (result.isPlatformUnsupported) {
         state = state.copyWith(
           isSyncing: false,
-          syncMessage: 'SMS sync is only available on Android. Use "Add Expense" to log manually.',
+          syncMessage:
+              'SMS sync is only available on Android. Use "Add Expense" to log manually.',
           syncSuccess: false,
         );
         return;
@@ -241,7 +286,8 @@ class TransactionController extends StateNotifier<TransactionState> {
       if (result.permissionDenied) {
         state = state.copyWith(
           isSyncing: false,
-          syncMessage: 'SMS permission was denied. Please enable it in phone Settings → Apps → Financial Clarity → Permissions → SMS.',
+          syncMessage:
+              'SMS permission was denied. Please enable it in phone Settings → Apps → Financial Clarity → Permissions → SMS.',
           syncSuccess: false,
         );
         return;
@@ -262,18 +308,21 @@ class TransactionController extends StateNotifier<TransactionState> {
       // POST to /transactions/bulk — send all parsed transactions to our backend
       // The rawSmsBody field is intentionally excluded from the payload for privacy
       final payload = {
-        'transactions': result.transactions.map((t) => {
-          'vendor': t.vendor,
-          'amount': t.amount,
-          'is_debit': t.isDebit,
-          'category': t.category,
-          'source': t.source,
-          'timestamp': t.timestamp.toUtc().toIso8601String(),
-          'description': null,
-        }).toList(),
+        'transactions': result.transactions
+            .map((t) => {
+                  'vendor': t.vendor,
+                  'amount': t.amount,
+                  'is_debit': t.isDebit,
+                  'category': t.category,
+                  'source': t.source,
+                  'timestamp': t.timestamp.toUtc().toIso8601String(),
+                  'description': null,
+                })
+            .toList(),
       };
 
-      final response = await _dio.post('${ApiEndpoints.transactions}/bulk', data: payload);
+      final response =
+          await _dio.post('${ApiEndpoints.transactions}/bulk', data: payload);
       final created = response.data['created_count'] ?? 0;
       final skipped = response.data['skipped_duplicates'] ?? 0;
 
@@ -291,7 +340,6 @@ class TransactionController extends StateNotifier<TransactionState> {
 
       // Trigger budget screen live updates
       _ref.read(transactionSyncEventProvider.notifier).state++;
-
     } catch (e) {
       state = state.copyWith(
         isSyncing: false,
@@ -322,7 +370,8 @@ class TransactionController extends StateNotifier<TransactionState> {
             'is_debit': false,
             'category': 'other',
             'source': 'gpay',
-            'timestamp': now.subtract(const Duration(minutes: 5)).toIso8601String(),
+            'timestamp':
+                now.subtract(const Duration(minutes: 5)).toIso8601String(),
             'description': 'Direct deposit sample',
           },
           {
@@ -331,7 +380,8 @@ class TransactionController extends StateNotifier<TransactionState> {
             'is_debit': true,
             'category': 'food',
             'source': 'phonepe',
-            'timestamp': now.subtract(const Duration(hours: 1)).toIso8601String(),
+            'timestamp':
+                now.subtract(const Duration(hours: 1)).toIso8601String(),
             'description': 'Dinner order',
           },
           {
@@ -340,7 +390,8 @@ class TransactionController extends StateNotifier<TransactionState> {
             'is_debit': true,
             'category': 'transport',
             'source': 'gpay',
-            'timestamp': now.subtract(const Duration(hours: 2)).toIso8601String(),
+            'timestamp':
+                now.subtract(const Duration(hours: 2)).toIso8601String(),
             'description': 'Office commute',
           },
           {
@@ -349,19 +400,22 @@ class TransactionController extends StateNotifier<TransactionState> {
             'is_debit': true,
             'category': 'shopping',
             'source': 'amazon_pay',
-            'timestamp': now.subtract(const Duration(hours: 3)).toIso8601String(),
+            'timestamp':
+                now.subtract(const Duration(hours: 3)).toIso8601String(),
             'description': 'Household items',
           },
         ],
       };
 
-      final response = await _dio.post('${ApiEndpoints.transactions}/bulk', data: payload);
+      final response =
+          await _dio.post('${ApiEndpoints.transactions}/bulk', data: payload);
       final created = response.data['created_count'] ?? 0;
       final skipped = response.data['skipped_duplicates'] ?? 0;
 
       state = state.copyWith(
         isSyncing: false,
-        syncMessage: '✓ Loaded $created mock transactions (skipped $skipped duplicates).',
+        syncMessage:
+            '✓ Loaded $created mock transactions (skipped $skipped duplicates).',
         syncSuccess: true,
       );
 
@@ -417,15 +471,13 @@ class TransactionFeedScreen extends ConsumerStatefulWidget {
   const TransactionFeedScreen({super.key});
 
   @override
-  ConsumerState<TransactionFeedScreen> createState() => _TransactionFeedScreenState();
+  ConsumerState<TransactionFeedScreen> createState() =>
+      _TransactionFeedScreenState();
 }
 
 class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
-
-
-
-
-  void _showMonthPicker(BuildContext context, WidgetRef ref, String currentMonth) {
+  void _showMonthPicker(
+      BuildContext context, WidgetRef ref, String currentMonth) {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
@@ -449,7 +501,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                   itemCount: months.length,
                   itemBuilder: (context, idx) {
                     final monthStr = months[idx];
-                    final date = DateTime.tryParse('$monthStr-01') ?? DateTime.now();
+                    final date =
+                        DateTime.tryParse('$monthStr-01') ?? DateTime.now();
                     final displayName = DateFormat('MMMM yyyy').format(date);
                     final isSelected = currentMonth == monthStr;
 
@@ -459,13 +512,21 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                         title: Text(
                           displayName,
                           style: TextStyle(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? AppColors.primary : Colors.black87,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color:
+                                isSelected ? AppColors.primary : Colors.black87,
                           ),
                         ),
-                        trailing: isSelected ? Icon(Icons.check_rounded, color: AppColors.primary) : null,
+                        trailing: isSelected
+                            ? Icon(Icons.check_rounded,
+                                color: AppColors.primary)
+                            : null,
                         onTap: () {
-                          ref.read(transactionControllerProvider.notifier).setMonth(monthStr);
+                          ref
+                              .read(transactionControllerProvider.notifier)
+                              .setMonth(monthStr);
                           Navigator.pop(ctx);
                         },
                       ),
@@ -487,11 +548,14 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
 
     ref.listen<TransactionState>(transactionControllerProvider, (prev, next) {
       // Show snackbar whenever isSyncing goes from true → false (sync just finished)
-      if ((prev?.isSyncing ?? false) && !next.isSyncing && next.syncMessage != null) {
+      if ((prev?.isSyncing ?? false) &&
+          !next.isSyncing &&
+          next.syncMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.syncMessage!),
-            backgroundColor: next.syncSuccess ? Colors.green.shade700 : Colors.red.shade700,
+            backgroundColor:
+                next.syncSuccess ? Colors.green.shade700 : Colors.red.shade700,
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
           ),
@@ -526,7 +590,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
       });
     }
 
-    final selectedDate = DateTime.tryParse('${state.selectedMonth}-01') ?? DateTime.now();
+    final selectedDate =
+        DateTime.tryParse('${state.selectedMonth}-01') ?? DateTime.now();
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -544,11 +609,13 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_month_rounded),
-            onPressed: () => _showMonthPicker(context, ref, state.selectedMonth),
+            onPressed: () =>
+                _showMonthPicker(context, ref, state.selectedMonth),
           ),
           IconButton(
             icon: const Icon(Icons.filter_list_rounded),
-            onPressed: () => _showFilterSheet(context, controller, state.categoryFilter),
+            onPressed: () =>
+                _showFilterSheet(context, controller, state.categoryFilter),
           ),
         ],
       ),
@@ -564,8 +631,10 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
               color: AppColors.primary,
               child: NotificationListener<ScrollNotification>(
                 onNotification: (scroll) {
-                  if (scroll.metrics.pixels >= scroll.metrics.maxScrollExtent - 200 &&
-                      state.hasMore && !state.isLoading) {
+                  if (scroll.metrics.pixels >=
+                          scroll.metrics.maxScrollExtent - 200 &&
+                      state.hasMore &&
+                      !state.isLoading) {
                     controller.loadTransactions();
                   }
                   return false;
@@ -585,12 +654,15 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                     if (state.categoryFilter != null)
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Chip(
                               label: Text(
-                                AppConstants.categoryNames[state.categoryFilter] ?? state.categoryFilter!,
+                                AppConstants
+                                        .categoryNames[state.categoryFilter] ??
+                                    state.categoryFilter!,
                               ),
                               deleteIcon: const Icon(Icons.close, size: 18),
                               onDeleted: () => controller.setFilter(null),
@@ -618,7 +690,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
     );
   }
 
-  Widget _buildSummaryCard(TransactionState state, TransactionController controller) {
+  Widget _buildSummaryCard(
+      TransactionState state, TransactionController controller) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Container(
@@ -641,7 +714,7 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
-                  'Money Available',
+                  'Budget Remaining',
                   style: TextStyle(
                     color: Colors.grey,
                     fontSize: 13,
@@ -649,16 +722,18 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                   ),
                 ),
                 Text(
-                  'Includes savings floor & unspent budget',
+                  'Salary after savings, minus what you\'ve spent this month',
+                  textAlign: TextAlign.center,
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.inkMuted,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  currencyFormatter.format(state.totalCredits - state.totalDebits),
+                  currencyFormatter
+                      .format(state.spendableIncome - state.totalDebits),
                   style: TextStyle(
-                    color: (state.totalCredits - state.totalDebits) >= 0
+                    color: (state.spendableIncome - state.totalDebits) >= 0
                         ? AppColors.primary
                         : AppColors.error,
                     fontSize: 28,
@@ -667,6 +742,65 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            // Salary & Savings Breakdown
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Total Salary',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        currencyFormatter.format(state.monthlyIncomeUsed),
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 32, color: Colors.grey.shade200),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Budget for Expenses',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        currencyFormatter.format(state.spendableIncome),
+                        style: const TextStyle(
+                          color: AppColors.success,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Salary − ${currencyFormatter.format(state.savingsFloorAmount)} savings floor = budget for expenses',
+                style: AppTypography.labelSmall
+                    .copyWith(color: AppColors.inkMuted),
+              ),
             ),
             const SizedBox(height: 12),
             const Divider(height: 1),
@@ -725,7 +859,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton.icon(
-                  onPressed: state.isSyncing ? null : () => controller.syncFromSms(),
+                  onPressed:
+                      state.isSyncing ? null : () => controller.syncFromSms(),
                   icon: state.isSyncing
                       ? const SizedBox(
                           width: 16,
@@ -734,14 +869,17 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                         )
                       : const Icon(Icons.sync_rounded, size: 18),
                   label: const Text('Sync SMS'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                  style:
+                      TextButton.styleFrom(foregroundColor: AppColors.primary),
                 ),
                 Row(
                   children: [
                     Text(
                       state.liveSyncEnabled ? 'Live Sync On' : 'Live Sync Off',
                       style: AppTypography.bodySmall.copyWith(
-                        color: state.liveSyncEnabled ? AppColors.success : AppColors.inkLight,
+                        color: state.liveSyncEnabled
+                            ? AppColors.success
+                            : AppColors.inkLight,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -762,10 +900,12 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                 width: double.infinity,
                 child: TextButton.icon(
                   onPressed: () => controller.loadTestData(),
-                  icon: const Icon(Icons.playlist_add_rounded, color: Colors.blue),
+                  icon: const Icon(Icons.playlist_add_rounded,
+                      color: Colors.blue),
                   label: const Text(
                     'Load Test Data (Debug Only)',
-                    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.blue, fontWeight: FontWeight.bold),
                   ),
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.blue.withOpacity(0.08),
@@ -789,8 +929,9 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
       return amt > 0;
     }).toList();
 
-    final showPieChart = (state.activeTab == 'all' || state.activeTab == 'debit') &&
-        nonZeroCategories.isNotEmpty;
+    final showPieChart =
+        (state.activeTab == 'all' || state.activeTab == 'debit') &&
+            nonZeroCategories.isNotEmpty;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
@@ -806,12 +947,16 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                       sectionsSpace: 2,
                       sections: nonZeroCategories.map((item) {
                         final category = item['category'] ?? 'other';
-                        final percentage = (item['percentage'] as num?)?.toDouble() ?? 0.0;
-                        final color = categoryColors[category] ?? categoryColors['other']!;
+                        final percentage =
+                            (item['percentage'] as num?)?.toDouble() ?? 0.0;
+                        final color = categoryColors[category] ??
+                            categoryColors['other']!;
                         return PieChartSectionData(
                           color: color,
                           value: percentage,
-                          title: percentage > 8 ? '${percentage.toStringAsFixed(0)}%' : '',
+                          title: percentage > 8
+                              ? '${percentage.toStringAsFixed(0)}%'
+                              : '',
                           radius: 50,
                           titleStyle: const TextStyle(
                             fontSize: 10,
@@ -830,9 +975,12 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                   child: Row(
                     children: nonZeroCategories.map((item) {
                       final category = item['category'] ?? 'other';
-                      final color = categoryColors[category] ?? categoryColors['other']!;
-                      final displayName = item['display_name'] ?? category.toUpperCase();
-                      final amt = (item['total_amount'] as num?)?.toDouble() ?? 0.0;
+                      final color =
+                          categoryColors[category] ?? categoryColors['other']!;
+                      final displayName =
+                          item['display_name'] ?? category.toUpperCase();
+                      final amt =
+                          (item['total_amount'] as num?)?.toDouble() ?? 0.0;
                       return Padding(
                         padding: const EdgeInsets.only(right: 16),
                         child: Row(
@@ -874,7 +1022,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
     );
   }
 
-  Widget _buildTabRow(TransactionState state, TransactionController controller) {
+  Widget _buildTabRow(
+      TransactionState state, TransactionController controller) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
@@ -909,7 +1058,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
             selected: state.activeTab == 'credit',
             selectedColor: AppColors.primary,
             labelStyle: TextStyle(
-              color: state.activeTab == 'credit' ? Colors.white : Colors.black87,
+              color:
+                  state.activeTab == 'credit' ? Colors.white : Colors.black87,
             ),
             onSelected: (selected) {
               if (selected) controller.setTab('credit');
@@ -920,7 +1070,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
     );
   }
 
-  Widget _buildSliverList(TransactionState state, TransactionController controller) {
+  Widget _buildSliverList(
+      TransactionState state, TransactionController controller) {
     if (state.error != null && state.transactions.isEmpty) {
       return SliverFillRemaining(
         hasScrollBody: false,
@@ -950,7 +1101,10 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 80), // extra padding at the bottom for FAB spacing
+      padding: const EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: 80), // extra padding at the bottom for FAB spacing
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -998,7 +1152,8 @@ class _TransactionFeedScreenState extends ConsumerState<TransactionFeedScreen> {
                   },
                 ),
                 ...AppConstants.categoryNames.entries.map((e) => ChoiceChip(
-                      label: Text('${AppConstants.categoryIcons[e.key] ?? ''} ${e.value}'),
+                      label: Text(
+                          '${AppConstants.categoryIcons[e.key] ?? ''} ${e.value}'),
                       selected: current == e.key,
                       onSelected: (_) {
                         controller.setFilter(e.key);
@@ -1097,7 +1252,8 @@ class _TransactionTile extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(4),
@@ -1149,7 +1305,7 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
   final _amountController = TextEditingController();
   final _vendorController = TextEditingController();
   final _descriptionController = TextEditingController();
-  
+
   String _selectedCategory = 'other';
   bool _isDebit = true;
   DateTime _selectedDate = DateTime.now();
@@ -1179,15 +1335,16 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     final amount = double.tryParse(_amountController.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid amount greater than 0')),
+        const SnackBar(
+            content: Text('Please enter a valid amount greater than 0')),
       );
       return;
     }
-    
+
     final vendor = _vendorController.text.trim();
     if (vendor.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1206,8 +1363,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
         'vendor': vendor,
         'amount': amount,
         'category': _selectedCategory,
-        'description': _descriptionController.text.trim().isNotEmpty 
-            ? _descriptionController.text.trim() 
+        'description': _descriptionController.text.trim().isNotEmpty
+            ? _descriptionController.text.trim()
             : null,
         'source': 'manual',
         'is_debit': _isDebit,
@@ -1216,7 +1373,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
 
       final response = await dio.post(ApiEndpoints.transactions, data: payload);
       final responseData = response.data;
-      final warnings = List<Map<String, dynamic>>.from(responseData['warnings'] ?? []);
+      final warnings =
+          List<Map<String, dynamic>>.from(responseData['warnings'] ?? []);
 
       if (mounted) {
         Navigator.pop(context);
@@ -1240,14 +1398,17 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                 content: Row(
                   children: [
                     Icon(
-                      threshold >= 85 ? Icons.warning_rounded : Icons.info_rounded,
+                      threshold >= 85
+                          ? Icons.warning_rounded
+                          : Icons.info_rounded,
                       color: Colors.white,
                     ),
                     const SizedBox(width: 10),
                     Expanded(child: Text(message)),
                   ],
                 ),
-                backgroundColor: threshold >= 85 ? AppColors.error : AppColors.warning,
+                backgroundColor:
+                    threshold >= 85 ? AppColors.error : AppColors.warning,
                 duration: const Duration(seconds: 5),
                 behavior: SnackBarBehavior.floating,
               ),
@@ -1314,7 +1475,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                 // Amount Field
                 TextFormField(
                   controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     prefixText: '₹ ',
                     labelText: 'Amount',
@@ -1367,7 +1529,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                 const SizedBox(height: 16),
 
                 // Transaction Type Toggle
-                const Text('Transaction Type', style: TextStyle(fontWeight: FontWeight.w500)),
+                const Text('Transaction Type',
+                    style: TextStyle(fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 SegmentedButton<bool>(
                   segments: const <ButtonSegment<bool>>[
@@ -1390,7 +1553,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                 const SizedBox(height: 20),
 
                 // Category Selector Wrap
-                const Text('Category', style: TextStyle(fontWeight: FontWeight.w500)),
+                const Text('Category',
+                    style: TextStyle(fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -1419,7 +1583,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                   color: Colors.transparent,
                   child: ListTile(
                     title: const Text('Transaction Date'),
-                    subtitle: Text(DateFormat('dd MMM yyyy').format(_selectedDate)),
+                    subtitle:
+                        Text(DateFormat('dd MMM yyyy').format(_selectedDate)),
                     trailing: const Icon(Icons.calendar_today_rounded),
                     shape: RoundedRectangleBorder(
                       side: BorderSide(color: Colors.grey.shade400, width: 1),
@@ -1446,7 +1611,8 @@ class _ManualAddSheetState extends ConsumerState<_ManualAddSheet> {
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
                             'Save Transaction',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
