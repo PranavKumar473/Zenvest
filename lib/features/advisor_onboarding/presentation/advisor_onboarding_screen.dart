@@ -14,15 +14,18 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../human_advisors/domain/advisor.dart';
+import '../../../shared/widgets/ambient_background.dart';
 
 class AdvisorOnboardingScreen extends ConsumerStatefulWidget {
   const AdvisorOnboardingScreen({super.key});
 
   @override
-  ConsumerState<AdvisorOnboardingScreen> createState() => _AdvisorOnboardingScreenState();
+  ConsumerState<AdvisorOnboardingScreen> createState() =>
+      _AdvisorOnboardingScreenState();
 }
 
-class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScreen> {
+class _AdvisorOnboardingScreenState
+    extends ConsumerState<AdvisorOnboardingScreen> {
   final _pageController = PageController();
   int _currentStep = 0;
   static const _totalSteps = 4;
@@ -84,7 +87,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
   String? get _panError {
     final v = _panController.text.trim().toUpperCase();
     if (v.isEmpty) return null; // don't nag before they've started typing
-    if (!_panPattern.hasMatch(v)) return 'Enter a valid 10-character PAN, e.g. ABCPD1234E';
+    if (!_panPattern.hasMatch(v))
+      return 'Enter a valid 10-character PAN, e.g. ABCPD1234E';
     return null;
   }
 
@@ -112,17 +116,20 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
   String? get _step0BlockedReason {
     if (_currentStep != 0 || _canProceed) return null;
     final missing = <String>[];
-    if (!_panPattern.hasMatch(_panController.text.trim().toUpperCase())) missing.add('a valid PAN');
+    if (!_panPattern.hasMatch(_panController.text.trim().toUpperCase()))
+      missing.add('a valid PAN');
     if (_cityController.text.trim().isEmpty) missing.add('city');
     if (_stateController.text.trim().isEmpty) missing.add('state');
-    if (_pincodeController.text.trim().length != 6) missing.add('a 6-digit pincode');
+    if (_pincodeController.text.trim().length != 6)
+      missing.add('a 6-digit pincode');
     if (missing.isEmpty) return null;
     return 'Still need: ${missing.join(', ')}.';
   }
 
   void _nextStep() {
     if (_currentStep < _totalSteps - 1) {
-      _pageController.nextPage(duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+      _pageController.nextPage(
+          duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
       setState(() => _currentStep++);
     } else {
       _submit();
@@ -131,7 +138,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
 
   void _previousStep() {
     if (_currentStep > 0) {
-      _pageController.previousPage(duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
+      _pageController.previousPage(
+          duration: const Duration(milliseconds: 350), curve: Curves.easeInOut);
       setState(() => _currentStep--);
     }
   }
@@ -154,17 +162,20 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
       final data = response.data;
       if (mounted) {
         setState(() {
-          _gstStatus = gstStatusFromString(data['gst_verification_status'] as String?);
+          _gstStatus =
+              gstStatusFromString(data['gst_verification_status'] as String?);
           _gstVerifyMessage = _gstStatus == GstVerificationStatus.verified
               ? 'Verified against GST Portal as "${data['gst_legal_name']}"'
-              : (data['reason'] as String? ?? 'Verification failed. Check the GSTIN and try again.');
+              : (data['reason'] as String? ??
+                  'Verification failed. Check the GSTIN and try again.');
         });
       }
     } on DioException catch (e) {
       if (mounted) {
         setState(() {
           _gstStatus = GstVerificationStatus.failed;
-          _gstVerifyMessage = e.response?.data?['detail']?.toString() ?? 'Could not reach the GST Portal.';
+          _gstVerifyMessage = e.response?.data?['detail']?.toString() ??
+              'Could not reach the GST Portal.';
         });
       }
     } finally {
@@ -174,7 +185,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
 
   Future<void> _pickProfilePicture() async {
     final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
+    final image =
+        await picker.pickImage(source: ImageSource.gallery, maxWidth: 800);
     if (image != null) setState(() => _profilePicture = image);
   }
 
@@ -195,14 +207,19 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
           'state': _stateController.text.trim(),
           'pincode': _pincodeController.text.trim(),
         },
-        if (_gstController.text.trim().isNotEmpty) 'gst_number': _gstController.text.trim().toUpperCase(),
-        if (_inaController.text.trim().isNotEmpty) 'sebi_registration_number': _inaController.text.trim().toUpperCase(),
-        if (_bioController.text.trim().isNotEmpty) 'bio': _bioController.text.trim(),
-        if (_specializations.isNotEmpty) 'specializations': _specializations.toList(),
+        if (_gstController.text.trim().isNotEmpty)
+          'gst_number': _gstController.text.trim().toUpperCase(),
+        if (_inaController.text.trim().isNotEmpty)
+          'sebi_registration_number': _inaController.text.trim().toUpperCase(),
+        if (_bioController.text.trim().isNotEmpty)
+          'bio': _bioController.text.trim(),
+        if (_specializations.isNotEmpty)
+          'specializations': _specializations.toList(),
         if (_experienceController.text.trim().isNotEmpty)
           'experience_years': int.tryParse(_experienceController.text.trim()),
         if (_consultationFeeController.text.trim().isNotEmpty)
-          'consultation_fee_monthly': double.tryParse(_consultationFeeController.text.trim()),
+          'consultation_fee_monthly':
+              double.tryParse(_consultationFeeController.text.trim()),
       });
 
       if (_profilePicture != null) {
@@ -210,12 +227,14 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
         await dio.post(
           ApiEndpoints.uploadProfilePicture,
           data: FormData.fromMap({
-            'file': MultipartFile.fromBytes(bytes, filename: _profilePicture!.name),
+            'file':
+                MultipartFile.fromBytes(bytes, filename: _profilePicture!.name),
           }),
         );
       }
 
-      if (_gstController.text.trim().isNotEmpty && _gstStatus != GstVerificationStatus.verified) {
+      if (_gstController.text.trim().isNotEmpty &&
+          _gstStatus != GstVerificationStatus.verified) {
         // Best-effort final verification pass if the advisor never tapped
         // "Verify" on step 2, or edited the number afterwards.
         await dio.post(ApiEndpoints.verifyMyGst);
@@ -232,7 +251,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
     } on DioException catch (e) {
       if (mounted) {
         setState(() {
-          _submitError = e.response?.data?['detail']?.toString() ?? 'Something went wrong. Please try again.';
+          _submitError = e.response?.data?['detail']?.toString() ??
+              'Something went wrong. Please try again.';
         });
       }
     } finally {
@@ -243,79 +263,100 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: _currentStep > 0
-            ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: _previousStep)
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: _previousStep)
             : null,
         title: Text('Verification · Step ${_currentStep + 1} of $_totalSteps'),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (_currentStep + 1) / _totalSteps,
-                minHeight: 4,
-                backgroundColor: AppColors.divider,
-                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+      body: AmbientBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: (_currentStep + 1) / _totalSteps,
+                    minHeight: 4,
+                    backgroundColor: AppColors.divider,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildPanAddressStep(),
+                    _buildGstStep(),
+                    _buildInaStep(),
+                    _buildProfileStep(),
+                  ],
+                ),
+              ),
+              if (_submitError != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: AppColors.errorLight,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text(_submitError!,
+                        style: AppTypography.bodySmall
+                            .copyWith(color: AppColors.error)),
+                  ),
+                ),
+              if (_step0BlockedReason != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    _step0BlockedReason!,
+                    style: AppTypography.bodySmall
+                        .copyWith(color: AppColors.inkMuted),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed:
+                        (_canProceed && !_isSubmitting) ? _nextStep : null,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.inkOnPrimary),
+                          )
+                        : Text(_currentStep == _totalSteps - 1
+                            ? 'Submit for Verification'
+                            : 'Continue'),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildPanAddressStep(),
-                _buildGstStep(),
-                _buildInaStep(),
-                _buildProfileStep(),
-              ],
-            ),
-          ),
-          if (_submitError != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppColors.errorLight, borderRadius: BorderRadius.circular(8)),
-                child: Text(_submitError!, style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
-              ),
-            ),
-          if (_step0BlockedReason != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                _step0BlockedReason!,
-                style: AppTypography.bodySmall.copyWith(color: AppColors.inkMuted),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: (_canProceed && !_isSubmitting) ? _nextStep : null,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 24, height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkOnPrimary),
-                      )
-                    : Text(_currentStep == _totalSteps - 1 ? 'Submit for Verification' : 'Continue'),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildStepScaffold({required String title, required String subtitle, required List<Widget> children}) {
+  Widget _buildStepScaffold(
+      {required String title,
+      required String subtitle,
+      required List<Widget> children}) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -323,7 +364,9 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
         children: [
           Text(title, style: AppTypography.displayMedium),
           const SizedBox(height: 8),
-          Text(subtitle, style: AppTypography.bodyLarge.copyWith(color: AppColors.inkLight)),
+          Text(subtitle,
+              style:
+                  AppTypography.bodyLarge.copyWith(color: AppColors.inkLight)),
           const SizedBox(height: 32),
           ...children,
         ],
@@ -334,7 +377,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
   Widget _buildPanAddressStep() {
     return _buildStepScaffold(
       title: 'Identity & Address',
-      subtitle: 'Required for your SEBI-compliant advisor profile. PAN is masked everywhere except admin review.',
+      subtitle:
+          'Required for your SEBI-compliant advisor profile. PAN is masked everywhere except admin review.',
       children: [
         TextField(
           controller: _panController,
@@ -357,18 +401,23 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
         const SizedBox(height: 8),
         TextField(
           controller: _addressLine1Controller,
-          decoration: const InputDecoration(labelText: 'Address Line 1 (optional)', prefixIcon: Icon(Icons.home_outlined)),
+          decoration: const InputDecoration(
+              labelText: 'Address Line 1 (optional)',
+              prefixIcon: Icon(Icons.home_outlined)),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _cityController,
-          decoration: const InputDecoration(labelText: 'City', prefixIcon: Icon(Icons.location_city_outlined)),
+          decoration: const InputDecoration(
+              labelText: 'City',
+              prefixIcon: Icon(Icons.location_city_outlined)),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _stateController,
-          decoration: const InputDecoration(labelText: 'State', prefixIcon: Icon(Icons.map_outlined)),
+          decoration: const InputDecoration(
+              labelText: 'State', prefixIcon: Icon(Icons.map_outlined)),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
@@ -411,7 +460,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
 
     return _buildStepScaffold(
       title: 'GST Registration',
-      subtitle: 'Optional — only required if your advisory turnover exceeds ₹20L/year. '
+      subtitle:
+          'Optional — only required if your advisory turnover exceeds ₹20L/year. '
           'We cross-check your GSTIN against the GST Portal.',
       children: [
         TextField(
@@ -438,21 +488,30 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: statusColor),
               ),
-              child: Text(statusLabel, style: AppTypography.labelMedium.copyWith(color: statusColor, fontWeight: FontWeight.bold)),
+              child: Text(statusLabel,
+                  style: AppTypography.labelMedium.copyWith(
+                      color: statusColor, fontWeight: FontWeight.bold)),
             ),
             const Spacer(),
             OutlinedButton.icon(
               icon: _isVerifyingGst
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.verified_outlined, size: 18),
               label: const Text('Verify with GST Portal'),
-              onPressed: (_gstController.text.trim().isEmpty || _isVerifyingGst) ? null : _verifyGst,
+              onPressed: (_gstController.text.trim().isEmpty || _isVerifyingGst)
+                  ? null
+                  : _verifyGst,
             ),
           ],
         ),
         if (_gstVerifyMessage != null) ...[
           const SizedBox(height: 8),
-          Text(_gstVerifyMessage!, style: AppTypography.bodySmall.copyWith(color: AppColors.inkMuted)),
+          Text(_gstVerifyMessage!,
+              style:
+                  AppTypography.bodySmall.copyWith(color: AppColors.inkMuted)),
         ],
       ],
     );
@@ -461,7 +520,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
   Widget _buildInaStep() {
     return _buildStepScaffold(
       title: 'SEBI RIA Registration',
-      subtitle: 'If you provide fee-only investment advice (not just mutual fund execution), '
+      subtitle:
+          'If you provide fee-only investment advice (not just mutual fund execution), '
           'enter your SEBI Investment Adviser registration number. Per SEBI guidelines, '
           'fee-only advice is identified by your INA number — separate from the ARN you '
           'registered with, which covers mutual fund execution only.',
@@ -485,13 +545,15 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+              const Icon(Icons.info_outline_rounded,
+                  color: AppColors.primary, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'ARN = mutual fund execution/distribution.\nINA = fee-only advice, no execution.\n'
                   'You can hold both — investors will see whichever they attach to their investment.',
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.inkLight, height: 1.5),
+                  style: AppTypography.bodySmall
+                      .copyWith(color: AppColors.inkLight, height: 1.5),
                 ),
               ),
             ],
@@ -512,26 +574,34 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
             child: CircleAvatar(
               radius: 48,
               backgroundColor: AppColors.primarySurface,
-              backgroundImage: _profilePicture != null ? NetworkImage(_profilePicture!.path) : null,
+              backgroundImage: _profilePicture != null
+                  ? NetworkImage(_profilePicture!.path)
+                  : null,
               child: _profilePicture == null
-                  ? const Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 28)
+                  ? const Icon(Icons.add_a_photo_outlined,
+                      color: AppColors.primary, size: 28)
                   : null,
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Center(child: Text('Tap to add profile photo', style: AppTypography.bodySmall.copyWith(color: AppColors.inkMuted))),
+        Center(
+            child: Text('Tap to add profile photo',
+                style: AppTypography.bodySmall
+                    .copyWith(color: AppColors.inkMuted))),
         const SizedBox(height: 24),
         TextField(
           controller: _bioController,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Bio (optional)', alignLabelWithHint: true),
+          decoration: const InputDecoration(
+              labelText: 'Bio (optional)', alignLabelWithHint: true),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _experienceController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Years of experience (optional)'),
+          decoration: const InputDecoration(
+              labelText: 'Years of experience (optional)'),
         ),
         const SizedBox(height: 16),
         TextField(
@@ -553,7 +623,8 @@ class _AdvisorOnboardingScreenState extends ConsumerState<AdvisorOnboardingScree
             return FilterChip(
               label: Text(s),
               selected: selected,
-              onSelected: (v) => setState(() => v ? _specializations.add(s) : _specializations.remove(s)),
+              onSelected: (v) => setState(() =>
+                  v ? _specializations.add(s) : _specializations.remove(s)),
             );
           }).toList(),
         ),

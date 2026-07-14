@@ -84,7 +84,7 @@ class _SubscriptionCheckoutScreenState extends ConsumerState<SubscriptionCheckou
       'subscription_id': checkout.providerSubscriptionId,
       'name': 'Financial Clarity',
       'description': 'Monthly consultation — ${checkout.advisorName}',
-      'theme': {'color': '#1A5C3A'},
+      'theme': {'color': '#3B3486'},
     });
   }
 

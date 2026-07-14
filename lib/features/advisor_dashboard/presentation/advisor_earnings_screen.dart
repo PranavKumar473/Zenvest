@@ -113,7 +113,7 @@ class _AdvisorEarningsScreenState extends ConsumerState<AdvisorEarningsScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
-            colors: [AppColors.primary, Color(0xFF1E3C72)],
+            colors: [AppColors.primary, AppColors.primaryDark],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

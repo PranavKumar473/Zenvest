@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../shared/widgets/ambient_background.dart';
+import '../../../shared/widgets/glass_card.dart';
 import 'auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -46,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       CurvedAnimation(parent: _animController, curve: Curves.easeOut),
     );
     _animController.forward();
-    
+
     // Check auto-login status on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(authControllerProvider.notifier).checkAuthStatus();
@@ -71,7 +73,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (_arnController.text.trim().isEmpty ||
           !RegExp(r"^ARN-\d{4,6}$").hasMatch(_arnController.text.trim())) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a valid ARN in format ARN-XXXXX (4-6 digits)')),
+          const SnackBar(
+              content: Text(
+                  'Please enter a valid ARN in format ARN-XXXXX (4-6 digits)')),
         );
         return;
       }
@@ -108,7 +112,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         password: _passwordController.text,
         userType: _userType,
         arnNumber: _userType == 'advisor' ? _arnController.text.trim() : null,
-        advisorName: _userType == 'advisor' ? _advisorLegalNameController.text.trim() : null,
+        advisorName: _userType == 'advisor'
+            ? _advisorLegalNameController.text.trim()
+            : null,
         licenseImageBytes: fileBytes,
         licenseImageName: _userType == 'advisor' ? _arnCardFile?.name : null,
       );
@@ -127,7 +133,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Account created successfully! Please sign in to complete onboarding.'),
+              content: Text(
+                  'Account created successfully! Please sign in to complete onboarding.'),
               backgroundColor: AppColors.success,
               duration: Duration(seconds: 4),
               behavior: SnackBarBehavior.floating,
@@ -143,7 +150,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   String _homeRouteFor(AuthState state) {
     if (state.userType == 'advisor') {
-      return state.onboardingCompleted ? '/advisor-requests' : '/advisor-onboarding';
+      return state.onboardingCompleted
+          ? '/advisor-requests'
+          : '/advisor-onboarding';
     }
     return state.onboardingCompleted ? '/dashboard' : '/onboarding';
   }
@@ -153,260 +162,331 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final authState = ref.watch(authControllerProvider);
 
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
-      if (next.status == AuthStatus.authenticated && previous?.status != AuthStatus.authenticated) {
+      if (next.status == AuthStatus.authenticated &&
+          previous?.status != AuthStatus.authenticated) {
         context.go(_homeRouteFor(next));
       }
     });
 
     return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: _showSuccessScreen
-                ? _buildSuccessScreen()
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 40),
-                      // Logo & Title
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.primarySurface,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.account_balance_wallet_rounded,
-                            size: 48,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Financial Clarity',
-                        style: AppTypography.displayLarge,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isLogin
-                            ? 'Welcome back. Let\'s review your finances.'
-                            : 'Start your journey to financial clarity.',
-                        style: AppTypography.bodyLarge.copyWith(
-                          color: AppColors.inkLight,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Form
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            if (!_isLogin) ...[
-                              _buildUserTypeSelection(),
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: TextFormField(
-                                  controller: _nameController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Full Name',
-                                    prefixIcon: Icon(Icons.person_outline),
-                                  ),
-                                  textCapitalization: TextCapitalization.words,
-                                  validator: (v) {
-                                    if (!_isLogin && (v == null || v.length < 2)) {
-                                      return 'Please enter your name';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            ],
-                            TextFormField(
-                              controller: _emailController,
-                              decoration: const InputDecoration(
-                                  labelText: 'Email',
-                                  prefixIcon: Icon(Icons.email_outlined)),
-                              keyboardType: TextInputType.emailAddress,
-                              autocorrect: false,
-                              validator: (v) {
-                                if (v == null || !v.contains('@')) {
-                                  return 'Please enter a valid email';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _passwordController,
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                  ),
-                                  onPressed: () {
-                                    setState(() => _obscurePassword = !_obscurePassword);
-                                  },
-                                ),
-                              ),
-                              obscureText: _obscurePassword,
-                              validator: (v) {
-                                if (v == null || v.length < 8) {
-                                  return 'Password must be at least 8 characters';
-                                }
-                                return null;
-                              },
-                            ),
-                            if (!_isLogin && _userType == 'advisor') ...[
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _arnController,
-                                decoration: const InputDecoration(
-                                  labelText: 'ARN Number',
-                                  hintText: 'ARN-12345',
-                                  helperText: 'Your AMFI-assigned Agent Registration Number',
-                                  prefixIcon: Icon(Icons.badge_outlined),
-                                ),
-                                inputFormatters: [
-                                  TextInputFormatter.withFunction((oldValue, newValue) {
-                                    var text = newValue.text.toUpperCase();
-                                    if (!text.startsWith('ARN-') && text.isNotEmpty) {
-                                      text = 'ARN-$text'.replaceAll('ARN-ARN-', 'ARN-');
-                                    }
-                                    return newValue.copyWith(
-                                      text: text,
-                                      selection: TextSelection.fromPosition(
-                                        TextPosition(offset: text.length),
-                                      ),
-                                    );
-                                  }),
-                                ],
-                                validator: (v) {
-                                  if (!_isLogin && _userType == 'advisor') {
-                                    if (v == null || v.isEmpty) return 'ARN is required';
-                                    if (!RegExp(r"^ARN-\d{4,6}$").hasMatch(v)) return 'Format must be ARN-XXXXX';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _advisorLegalNameController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Full Name (as on ARN card)',
-                                  hintText: 'As printed on your AMFI registration',
-                                  prefixIcon: Icon(Icons.person_outline),
-                                ),
-                                validator: (v) {
-                                  if (!_isLogin && _userType == 'advisor' && (v == null || v.isEmpty)) {
-                                    return 'Legal name is required';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              GestureDetector(
-                                onTap: () async {
-                                  final picker = ImagePicker();
-                                  final image = await picker.pickImage(source: ImageSource.gallery);
-                                  if (image != null) {
-                                    setState(() => _arnCardFile = image);
-                                  }
-                                },
-                                child: Container(
-                                  height: 120,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: AppColors.divider, width: 1.5),
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: AppColors.canvas,
-                                  ),
-                                  child: _arnCardFile != null
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(11),
-                                          child: Image.network(_arnCardFile!.path, fit: BoxFit.cover, width: double.infinity),
-                                        )
-                                      : Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(Icons.upload_file_outlined, size: 32, color: AppColors.inkMuted),
-                                            const SizedBox(height: 8),
-                                            Text('Upload ARN Card Photo', style: AppTypography.labelMedium),
-                                            Text('JPG or PNG, front side', style: AppTypography.labelSmall.copyWith(color: AppColors.inkMuted)),
-                                          ],
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // Error message
-                      if (authState.status == AuthStatus.error && authState.failure != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
+      body: AmbientBackground(
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: _showSuccessScreen
+                  ? _buildSuccessScreen()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 24),
+                        // Logo & Title
+                        Center(
                           child: Container(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: AppColors.errorLight,
-                              borderRadius: BorderRadius.circular(8),
+                              color: AppColors.primarySurface,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withOpacity(0.18),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              authState.failure!.message,
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.error),
-                              textAlign: TextAlign.center,
+                            child: const Icon(
+                              Icons.trending_up_rounded,
+                              size: 48,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
-
-                      const SizedBox(height: 32),
-
-                      // Submit button
-                      SizedBox(
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: authState.status == AuthStatus.loading ? null : _submit,
-                          child: authState.status == AuthStatus.loading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.inkOnPrimary,
-                                  ),
-                                )
-                              : Text(_isLogin ? 'Sign In' : 'Create Account'),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Financial Clarity',
+                          style: AppTypography.displayLarge,
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Toggle login/register
-                      TextButton(
-                        onPressed: () {
-                          setState(() => _isLogin = !_isLogin);
-                        },
-                        child: Text(
+                        const SizedBox(height: 8),
+                        Text(
                           _isLogin
-                              ? 'Don\'t have an account? Sign Up'
-                              : 'Already have an account? Sign In',
+                              ? 'Welcome back. Let\'s review your finances.'
+                              : 'Start your journey to financial clarity.',
+                          style: AppTypography.bodyLarge.copyWith(
+                            color: AppColors.inkLight,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
+                        const SizedBox(height: 32),
 
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+                        GlassCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Form
+                              Form(
+                                key: _formKey,
+                                child: Column(
+                                  children: [
+                                    if (!_isLogin) ...[
+                                      _buildUserTypeSelection(),
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 16),
+                                        child: TextFormField(
+                                          controller: _nameController,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Full Name',
+                                            prefixIcon:
+                                                Icon(Icons.person_outline),
+                                          ),
+                                          textCapitalization:
+                                              TextCapitalization.words,
+                                          validator: (v) {
+                                            if (!_isLogin &&
+                                                (v == null || v.length < 2)) {
+                                              return 'Please enter your name';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                    TextFormField(
+                                      controller: _emailController,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Email',
+                                          prefixIcon:
+                                              Icon(Icons.email_outlined)),
+                                      keyboardType: TextInputType.emailAddress,
+                                      autocorrect: false,
+                                      validator: (v) {
+                                        if (v == null || !v.contains('@')) {
+                                          return 'Please enter a valid email';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller: _passwordController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Password',
+                                        prefixIcon:
+                                            const Icon(Icons.lock_outline),
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                          ),
+                                          onPressed: () {
+                                            setState(() => _obscurePassword =
+                                                !_obscurePassword);
+                                          },
+                                        ),
+                                      ),
+                                      obscureText: _obscurePassword,
+                                      validator: (v) {
+                                        if (v == null || v.length < 8) {
+                                          return 'Password must be at least 8 characters';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    if (!_isLogin &&
+                                        _userType == 'advisor') ...[
+                                      const SizedBox(height: 16),
+                                      TextFormField(
+                                        controller: _arnController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'ARN Number',
+                                          hintText: 'ARN-12345',
+                                          helperText:
+                                              'Your AMFI-assigned Agent Registration Number',
+                                          prefixIcon:
+                                              Icon(Icons.badge_outlined),
+                                        ),
+                                        inputFormatters: [
+                                          TextInputFormatter.withFunction(
+                                              (oldValue, newValue) {
+                                            var text =
+                                                newValue.text.toUpperCase();
+                                            if (!text.startsWith('ARN-') &&
+                                                text.isNotEmpty) {
+                                              text = 'ARN-$text'.replaceAll(
+                                                  'ARN-ARN-', 'ARN-');
+                                            }
+                                            return newValue.copyWith(
+                                              text: text,
+                                              selection:
+                                                  TextSelection.fromPosition(
+                                                TextPosition(
+                                                    offset: text.length),
+                                              ),
+                                            );
+                                          }),
+                                        ],
+                                        validator: (v) {
+                                          if (!_isLogin &&
+                                              _userType == 'advisor') {
+                                            if (v == null || v.isEmpty)
+                                              return 'ARN is required';
+                                            if (!RegExp(r"^ARN-\d{4,6}$")
+                                                .hasMatch(v))
+                                              return 'Format must be ARN-XXXXX';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      const SizedBox(height: 16),
+                                      TextFormField(
+                                        controller: _advisorLegalNameController,
+                                        decoration: const InputDecoration(
+                                          labelText:
+                                              'Full Name (as on ARN card)',
+                                          hintText:
+                                              'As printed on your AMFI registration',
+                                          prefixIcon:
+                                              Icon(Icons.person_outline),
+                                        ),
+                                        validator: (v) {
+                                          if (!_isLogin &&
+                                              _userType == 'advisor' &&
+                                              (v == null || v.isEmpty)) {
+                                            return 'Legal name is required';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      const SizedBox(height: 16),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final picker = ImagePicker();
+                                          final image = await picker.pickImage(
+                                              source: ImageSource.gallery);
+                                          if (image != null) {
+                                            setState(
+                                                () => _arnCardFile = image);
+                                          }
+                                        },
+                                        child: Container(
+                                          height: 120,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                                color: AppColors.divider,
+                                                width: 1.5),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            color: AppColors.canvas,
+                                          ),
+                                          child: _arnCardFile != null
+                                              ? ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(11),
+                                                  child: Image.network(
+                                                      _arnCardFile!.path,
+                                                      fit: BoxFit.cover,
+                                                      width: double.infinity),
+                                                )
+                                              : Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    const Icon(
+                                                        Icons
+                                                            .upload_file_outlined,
+                                                        size: 32,
+                                                        color:
+                                                            AppColors.inkMuted),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                        'Upload ARN Card Photo',
+                                                        style: AppTypography
+                                                            .labelMedium),
+                                                    Text(
+                                                        'JPG or PNG, front side',
+                                                        style: AppTypography
+                                                            .labelSmall
+                                                            .copyWith(
+                                                                color: AppColors
+                                                                    .inkMuted)),
+                                                  ],
+                                                ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+
+                              // Error message
+                              if (authState.status == AuthStatus.error &&
+                                  authState.failure != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 16),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.errorLight,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      authState.failure!.message,
+                                      style: AppTypography.bodySmall
+                                          .copyWith(color: AppColors.error),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+
+                              const SizedBox(height: 28),
+
+                              // Submit button
+                              SizedBox(
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      authState.status == AuthStatus.loading
+                                          ? null
+                                          : _submit,
+                                  child: authState.status == AuthStatus.loading
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppColors.inkOnPrimary,
+                                          ),
+                                        )
+                                      : Text(_isLogin
+                                          ? 'Sign In'
+                                          : 'Create Account'),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Toggle login/register
+                              TextButton(
+                                onPressed: () {
+                                  setState(() => _isLogin = !_isLogin);
+                                },
+                                child: Text(
+                                  _isLogin
+                                      ? 'Don\'t have an account? Sign Up'
+                                      : 'Already have an account? Sign In',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
@@ -430,10 +510,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _userType == 'user' ? AppColors.primarySurface : Colors.white,
+                    color: _userType == 'user'
+                        ? AppColors.primarySurface
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _userType == 'user' ? AppColors.primary : AppColors.divider,
+                      color: _userType == 'user'
+                          ? AppColors.primary
+                          : AppColors.divider,
                       width: _userType == 'user' ? 2 : 1,
                     ),
                   ),
@@ -445,7 +529,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       const SizedBox(height: 4),
                       Text(
                         'I want to track my money & get advice',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.inkLight),
+                        style: AppTypography.labelSmall
+                            .copyWith(color: AppColors.inkLight),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -460,10 +545,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _userType == 'advisor' ? AppColors.primarySurface : Colors.white,
+                    color: _userType == 'advisor'
+                        ? AppColors.primarySurface
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _userType == 'advisor' ? AppColors.primary : AppColors.divider,
+                      color: _userType == 'advisor'
+                          ? AppColors.primary
+                          : AppColors.divider,
                       width: _userType == 'advisor' ? 2 : 1,
                     ),
                   ),
@@ -475,7 +564,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       const SizedBox(height: 4),
                       Text(
                         'I am an AMFI-registered advisor',
-                        style: AppTypography.labelSmall.copyWith(color: AppColors.inkLight),
+                        style: AppTypography.labelSmall
+                            .copyWith(color: AppColors.inkLight),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -524,16 +614,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             children: [
               Text(
                 'ARN Number: ${_arnController.text}',
-                style: AppTypography.labelLarge.copyWith(color: AppColors.primary),
+                style:
+                    AppTypography.labelLarge.copyWith(color: AppColors.primary),
               ),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Status: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Status: ',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   Text(
                     'Pending Verification 🔄',
-                    style: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.amber.shade800,
+                        fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
