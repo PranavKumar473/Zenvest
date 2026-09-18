@@ -73,6 +73,23 @@ class Settings(BaseSettings):
     RAZORPAY_WEBHOOK_SECRET: str = ""
     # When key/secret are blank, BillingService falls back to MockBillingProvider
 
+    # Investment routing — every execution through the platform's "Invest"
+    # flow registers under this single corporate ARN (AMFI distributor
+    # registration), regardless of which human advisor guided the investor.
+    # Never shown to the end customer; individual advisors are attributed
+    # via EUIN (Employee Unique Identification Number) for commission
+    # accounting only — EUIN, not a second ARN, is the correct AMFI
+    # mechanism for individual-level accountability under one corporate ARN.
+    CORPORATE_ARN: str = "ARN-000001"
+    CORPORATE_ARN_HOLDER_NAME: str = "Financial Clarity Distribution Services"
+
+    # Risk metrics — annualized risk-free rate used in Sharpe/Sortino/Alpha
+    # (CAPM) calculations. Not a live feed (no free live G-Sec/T-bill API);
+    # a periodically-updated assumption, consistent with how most retail
+    # investment platforms source this figure. Update from RBI's published
+    # 91-day T-bill cutoff yield.
+    RISK_FREE_RATE_ANNUAL: float = 0.068  # ~6.8%, update periodically
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

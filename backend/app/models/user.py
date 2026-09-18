@@ -67,6 +67,21 @@ class User(Base):
         String(20), nullable=True
     )
     # AMFI ARN number — only for advisors. Format: ARN-XXXXX
+    # NOTE: investments executed through the platform's "Invest" flow always
+    # register under the platform's own CORPORATE_ARN (app/config.py), never
+    # an individual advisor's personal ARN — see app/services/investment_service.py.
+    # This field is informational (shown on the advisor's public profile for
+    # advisors who are independently AMFI-registered) and isn't used for
+    # fund-house execution routing.
+
+    euin: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )
+    # Employee Unique Identification Number — the AMFI-mandated identifier
+    # for an individual advisor operating under a corporate ARN. Used to
+    # attribute a platform-routed investment to the human advisor who
+    # guided it, for internal commission-split accounting, while the
+    # fund-house-facing registration stays under CORPORATE_ARN.
 
     arn_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default="false"

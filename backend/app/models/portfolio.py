@@ -78,6 +78,29 @@ class Portfolio(Base):
     )
     # FK to the advisor user who facilitated this investment
 
+    # --- Smart Investment Routing (hidden corporate ARN + EUIN attribution) ---
+    advisor_source: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="robo", server_default="robo"
+    )
+    # "robo" | "human" — who guided this investment (captured via the
+    # "Who guided your investment?" modal). Distinct from advisor_id, which
+    # may be null even when advisor_source == "human" if the advisor was
+    # entered by name only and isn't a matched platform user.
+
+    execution_arn: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )
+    # The ARN actually submitted to the fund house for this transaction —
+    # always CORPORATE_ARN (app/config.py), regardless of advisor_source.
+    # Never the individual advisor's personal arn_number. Null on rows
+    # created before this field existed.
+
+    advisor_euin: Mapped[Optional[str]] = mapped_column(
+        String(20), nullable=True
+    )
+    # Snapshot of the human advisor's EUIN at the time of this investment,
+    # for internal commission-split accounting (see AdvisorCommission).
+
     # Relationships
     user = relationship("User", back_populates="portfolios", foreign_keys=[user_id])
 

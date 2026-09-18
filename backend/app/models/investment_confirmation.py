@@ -27,4 +27,24 @@ class InvestmentConfirmation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    user = relationship("User")
+    # --- Smart Investment Routing (hidden corporate ARN + EUIN attribution) ---
+    advisor_source: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="robo", server_default="robo")
+    # "robo" | "human" — captured via the "Who guided your investment?" modal.
+
+    advisor_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True)
+    # FK to the advisor user, when the human advisor is a matched platform user.
+
+    advisor_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    # Denormalized name capture — set even if advisor_id can't be resolved
+    # (e.g. investor typed a name that doesn't match a platform account).
+
+    advisor_euin: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # The advisor's EUIN as captured at investment time, for commission accounting.
+
+    execution_arn: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    # Snapshot of the corporate ARN this investment was registered under.
+
+    user = relationship("User", foreign_keys=[user_id])
+    advisor = relationship("User", foreign_keys=[advisor_id])

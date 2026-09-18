@@ -14,7 +14,7 @@ from app.middleware.security import SecurityHeadersMiddleware, setup_cors, limit
 from app.routers import (
     auth, users, budgets, transactions, portfolios, account_aggregator,
     advisors, advisor_requests, arn_linkage, subscriptions, webhooks,
-    mutual_funds,
+    mutual_funds, invest, call_signaling,
 )
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -78,6 +78,8 @@ app.include_router(arn_linkage.router, prefix=API_PREFIX)
 app.include_router(subscriptions.router, prefix=API_PREFIX)
 app.include_router(webhooks.router, prefix=API_PREFIX)
 app.include_router(mutual_funds.router, prefix=API_PREFIX)
+app.include_router(invest.router, prefix=API_PREFIX)
+app.include_router(call_signaling.router, prefix=API_PREFIX)
 
 
 # --- Health Check ---

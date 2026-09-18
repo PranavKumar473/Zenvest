@@ -1,17 +1,71 @@
-# financial_clarity
+# Zenvest — Financial Clarity
 
-A new Flutter project.
+A comprehensive wealth management and investment advisory platform comprising a high-performance **FastAPI backend** and a multi-platform **Flutter frontend**.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 📁 Repository Structure
 
-A few resources to get you started if this is your first Flutter project:
+```
+Zenvest/
+├── backend/              # FastAPI Python backend (REST & WebSocket APIs)
+│   ├── app/              # Models, Routers, Services, Middleware
+│   ├── seed_data.py      # Database seeder script
+│   └── requirements.txt  # Python dependencies
+│
+└── financial_clarity/    # Flutter cross-platform client app
+    ├── lib/              # Riverpod state management, features, routing
+    ├── android/          # Android platform configuration
+    ├── ios/              # iOS platform configuration
+    ├── web/              # Web platform configuration
+    └── pubspec.yaml      # Flutter dependencies
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🚀 Getting Started
+
+### 1. Backend Service (FastAPI)
+
+```bash
+cd backend
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the API server
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+- **API Base URL**: `http://127.0.0.1:8000`
+- **Interactive Swagger Docs**: `http://127.0.0.1:8000/docs`
+- **ReDoc Documentation**: `http://127.0.0.1:8000/redoc`
+
+### 2. Frontend Client (Flutter)
+
+```bash
+cd financial_clarity
+
+# Fetch dependencies
+flutter pub get
+
+# Run on Chrome (Web)
+flutter run -d chrome --web-port 8080
+
+# Or run on macOS / mobile emulator
+flutter run -d macos
+```
+
+---
+
+## ✨ Features
+
+- **Portfolio & Budget Tracking**: Real-time asset bifurcation, expense categorization, and net-worth analytics.
+- **Mutual Funds Directory & Comparison**: Comprehensive mutual fund analytics with Sharpe ratios, alpha/beta, CAGR, and side-by-side fund comparison.
+- **Dual-Consent WebRTC Calling & Chat**: Direct investor-advisor consultation with WebRTC signaling transport.
+- **Account Aggregator Integration**: Financial Data Access via Consent Manager / AA protocols.
+- **SEBI / ARN Compliance & Verification**: Dedicated advisor onboarding flow with ARN document verification.

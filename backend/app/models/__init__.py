@@ -9,9 +9,10 @@ from app.models.chat_message import ChatMessage
 from app.models.call_session import CallSession
 from app.models.arn_linkage import ArnLinkage
 from app.models.subscription import Subscription
+from app.models.advisor_commission import AdvisorCommission
 
 __all__ = [
     "User", "Budget", "Transaction", "Portfolio", "AuditLog",
     "InvestmentConfirmation", "AdvisorRequest", "ChatMessage",
-    "CallSession", "ArnLinkage", "Subscription",
+    "CallSession", "ArnLinkage", "Subscription", "AdvisorCommission",
 ]

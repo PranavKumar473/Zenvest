@@ -84,7 +84,6 @@ async def add_holding(
 
 
 from pydantic import BaseModel
-from datetime import datetime, timezone
 
 class InvestmentConfirmRequest(BaseModel):
     asset_type: str
@@ -136,64 +135,24 @@ async def confirm_investment(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    User confirms they made (or skipped) an advised investment.
-    If confirmed, auto-creates a Portfolio holding entry and optional ARN linkage.
+    User confirms they made (or skipped) an advised investment from the
+    advisor screen. Delegates to the shared investment_service so every
+    entry point (this screen, the universal /invest flow, fund directory,
+    top-5 recommendations) executes under the same corporate-ARN routing
+    and advisor-attribution rules — see app/services/investment_service.py.
     """
-    from datetime import date
-    from app.models.investment_confirmation import InvestmentConfirmation
-    from app.models.portfolio import Portfolio
-    from app.models.arn_linkage import ArnLinkage
+    from app.services.investment_service import record_investment
 
-    conf = InvestmentConfirmation(
-        user_id=current_user.id,
+    result = await record_investment(
+        db,
+        investor=current_user,
         asset_type=data.asset_type,
         scheme_name=data.scheme_name,
         suggested_amount=data.suggested_amount,
         actual_amount=data.actual_amount,
         confirmed=data.confirmed,
-        confirmed_at=datetime.now(timezone.utc) if data.confirmed else None,
+        investment_mode=data.investment_mode,
+        advisor_source="human" if data.advisor_id else "robo",
+        advisor_id=data.advisor_id,
     )
-    db.add(conf)
-
-    advisor_arn = None
-    if data.confirmed and data.actual_amount > 0:
-        if data.advisor_id:
-            # Resolve advisor ARN
-            adv_res = await db.execute(
-                select(User).where(User.id == data.advisor_id, User.user_type == "advisor")
-            )
-            advisor = adv_res.scalar_one_or_none()
-            if advisor:
-                advisor_arn = advisor.arn_number or "ARN-00000"
-                # Establish ARN Linkage if not already exists
-                link_res = await db.execute(
-                    select(ArnLinkage).where(
-                        ArnLinkage.investor_id == current_user.id,
-                        ArnLinkage.advisor_id == data.advisor_id,
-                        ArnLinkage.is_active == True,
-                    )
-                )
-                if not link_res.scalar_one_or_none():
-                    linkage = ArnLinkage(
-                        investor_id=current_user.id,
-                        advisor_id=data.advisor_id,
-                        arn_number=advisor_arn,
-                        is_active=True,
-                    )
-                    db.add(linkage)
-
-        holding = Portfolio(
-            user_id=current_user.id,
-            asset_name=data.scheme_name,
-            asset_type=data.asset_type,
-            current_value=data.actual_amount,
-            initial_investment=data.actual_amount,
-            start_date=date.today(),
-            advisor_id=data.advisor_id,
-            advisor_arn=advisor_arn,
-            investment_mode=data.investment_mode,
-        )
-        db.add(holding)
-
-    await db.commit()
-    return {"message": "Investment recorded", "portfolio_updated": data.confirmed}
+    return {"message": result["message"], "portfolio_updated": data.confirmed}

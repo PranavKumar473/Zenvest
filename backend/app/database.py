@@ -113,10 +113,19 @@ async def init_db():
             ("users", "phone_number", "VARCHAR(20)"),
             ("users", "gst_verification_status", "VARCHAR(20) DEFAULT 'unverified'"),
             ("users", "gst_legal_name", "VARCHAR(200)"),
+            ("users", "euin", "VARCHAR(20)"),
             ("arn_linkages", "linkage_type", "VARCHAR(10) DEFAULT 'ARN'"),
             ("arn_linkages", "ina_number", "VARCHAR(30)"),
             ("call_sessions", "provider", "VARCHAR(20) DEFAULT 'mock'"),
             ("call_sessions", "provider_call_sid", "VARCHAR(64)"),
+            ("portfolios", "advisor_source", "VARCHAR(10) DEFAULT 'robo'"),
+            ("portfolios", "execution_arn", "VARCHAR(20)"),
+            ("portfolios", "advisor_euin", "VARCHAR(20)"),
+            ("investment_confirmations", "advisor_source", "VARCHAR(10) DEFAULT 'robo'"),
+            ("investment_confirmations", "advisor_id", "VARCHAR(36)"),
+            ("investment_confirmations", "advisor_name", "VARCHAR(200)"),
+            ("investment_confirmations", "advisor_euin", "VARCHAR(20)"),
+            ("investment_confirmations", "execution_arn", "VARCHAR(20)"),
         ]
         for table, column, coltype in column_migrations:
             try:

@@ -1,10 +1,11 @@
-from typing import Optional
+from typing import Optional, List
 """
 Transaction request/response schemas.
 """
 
 from datetime import datetime
 from pydantic import BaseModel, Field
+from app.schemas.budget import BudgetWarning
 
 
 class TransactionCreate(BaseModel):
@@ -97,5 +98,10 @@ class TransactionSyncResponse(BaseModel):
     success: bool
     transaction_id: Optional[str] = None
     message: str
+
+
+class TransactionWithWarningsResponse(TransactionResponse):
+    """Transaction response including any budget threshold warnings."""
+    warnings: List[BudgetWarning] = []
 
 
